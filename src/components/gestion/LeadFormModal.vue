@@ -1,0 +1,311 @@
+<script setup>
+import { ref } from 'vue'
+import { getTodayGMT5 } from '@/composables/useDateGMT5'
+
+const props = defineProps({
+  lead: {
+    type: Object,
+    default: null,
+  },
+})
+
+const emit = defineEmits(['save', 'close'])
+
+function crearFormularioInicial() {
+  if (props.lead) {
+    return {
+      source: props.lead.source || '',
+      contact: props.lead.contact || '',
+      company: props.lead.company || '',
+      email: props.lead.email || '',
+      phone: props.lead.phone || '',
+      created_at: props.lead.created_at || '',
+      requerimiento: props.lead.requerimiento || '',
+      active_campaign: !!props.lead.active_campaign,
+      seguimiento_inicial: props.lead.seguimiento_inicial || '',
+      contactado_at: props.lead.contactado_at || '',
+      calificado_at: props.lead.calificado_at || '',
+      no_calificado_at: props.lead.no_calificado_at || '',
+      visita_at: props.lead.visita_at || '',
+      propuesta_at: props.lead.propuesta_at || '',
+      conversion_at: props.lead.conversion_at || '',
+      rechazo_at: props.lead.rechazo_at || '',
+      factura: props.lead.factura ?? '',
+      review: props.lead.review || '',
+    }
+  }
+
+  return {
+    source: '',
+    contact: '',
+    company: '',
+    email: '',
+    phone: '',
+    created_at: getTodayGMT5(),
+    requerimiento: '',
+    active_campaign: false,
+    seguimiento_inicial: '',
+    contactado_at: '',
+    calificado_at: '',
+    no_calificado_at: '',
+    visita_at: '',
+    propuesta_at: '',
+    conversion_at: '',
+    rechazo_at: '',
+    factura: '',
+    review: '',
+  }
+}
+
+const formulario = ref(crearFormularioInicial())
+const errorValidacion = ref('')
+
+const camposFecha = [
+  'created_at',
+  'contactado_at',
+  'calificado_at',
+  'no_calificado_at',
+  'visita_at',
+  'propuesta_at',
+  'conversion_at',
+  'rechazo_at',
+]
+
+function construirPayload() {
+  const payload = { ...formulario.value }
+
+  camposFecha.forEach((campo) => {
+    payload[campo] = payload[campo] || null
+  })
+
+  payload.factura = payload.factura === '' || payload.factura === null ? null : Number(payload.factura)
+  payload.active_campaign = !!payload.active_campaign
+
+  return payload
+}
+
+function enviarFormulario() {
+  errorValidacion.value = ''
+
+  if (!formulario.value.contact.trim()) {
+    errorValidacion.value = 'El contacto es obligatorio.'
+    return
+  }
+  if (!formulario.value.source.trim()) {
+    errorValidacion.value = 'La fuente es obligatoria.'
+    return
+  }
+  if (!formulario.value.created_at) {
+    errorValidacion.value = 'La fecha de creación es obligatoria.'
+    return
+  }
+
+  emit('save', construirPayload())
+}
+</script>
+
+<template>
+  <div class="lead-form-modal">
+    <div class="lead-form-modal__fondo" @click="emit('close')"></div>
+    <div class="lead-form-modal__panel">
+      <h2 class="lead-form-modal__titulo">{{ props.lead ? 'Editar lead' : 'Nuevo lead' }}</h2>
+
+      <form class="lead-form-modal__form" @submit.prevent="enviarFormulario">
+        <div class="lead-form-modal__grid">
+          <label class="lead-form-modal__campo">
+            <span>Fuente</span>
+            <input v-model="formulario.source" type="text" required />
+          </label>
+
+          <label class="lead-form-modal__campo">
+            <span>Contacto</span>
+            <input v-model="formulario.contact" type="text" required />
+          </label>
+
+          <label class="lead-form-modal__campo">
+            <span>Empresa</span>
+            <input v-model="formulario.company" type="text" />
+          </label>
+
+          <label class="lead-form-modal__campo">
+            <span>Correo</span>
+            <input v-model="formulario.email" type="email" />
+          </label>
+
+          <label class="lead-form-modal__campo">
+            <span>Teléfono</span>
+            <input v-model="formulario.phone" type="text" />
+          </label>
+
+          <label class="lead-form-modal__campo">
+            <span>Fecha de creación</span>
+            <input v-model="formulario.created_at" type="date" required />
+          </label>
+
+          <label class="lead-form-modal__campo lead-form-modal__campo--checkbox">
+            <input v-model="formulario.active_campaign" type="checkbox" />
+            <span>Active Campaign</span>
+          </label>
+
+          <label class="lead-form-modal__campo">
+            <span>Factura</span>
+            <input v-model="formulario.factura" type="number" step="0.01" min="0" />
+          </label>
+
+          <label class="lead-form-modal__campo">
+            <span>Fecha contactado</span>
+            <input v-model="formulario.contactado_at" type="date" />
+          </label>
+
+          <label class="lead-form-modal__campo">
+            <span>Fecha calificado</span>
+            <input v-model="formulario.calificado_at" type="date" />
+          </label>
+
+          <label class="lead-form-modal__campo">
+            <span>Fecha no calificado</span>
+            <input v-model="formulario.no_calificado_at" type="date" />
+          </label>
+
+          <label class="lead-form-modal__campo">
+            <span>Fecha de visita</span>
+            <input v-model="formulario.visita_at" type="date" />
+          </label>
+
+          <label class="lead-form-modal__campo">
+            <span>Fecha de propuesta</span>
+            <input v-model="formulario.propuesta_at" type="date" />
+          </label>
+
+          <label class="lead-form-modal__campo">
+            <span>Fecha de conversión</span>
+            <input v-model="formulario.conversion_at" type="date" />
+          </label>
+
+          <label class="lead-form-modal__campo">
+            <span>Fecha de rechazo</span>
+            <input v-model="formulario.rechazo_at" type="date" />
+          </label>
+        </div>
+
+        <label class="lead-form-modal__campo lead-form-modal__campo--full">
+          <span>Requerimiento</span>
+          <textarea v-model="formulario.requerimiento" rows="2"></textarea>
+        </label>
+
+        <label class="lead-form-modal__campo lead-form-modal__campo--full">
+          <span>Seguimiento inicial</span>
+          <textarea v-model="formulario.seguimiento_inicial" rows="2"></textarea>
+        </label>
+
+        <label class="lead-form-modal__campo lead-form-modal__campo--full">
+          <span>Review</span>
+          <textarea v-model="formulario.review" rows="2"></textarea>
+        </label>
+
+        <p v-if="errorValidacion" class="lead-form-modal__error">{{ errorValidacion }}</p>
+
+        <div class="lead-form-modal__acciones">
+          <button type="button" class="lead-form-modal__boton-cancelar" @click="emit('close')">Cancelar</button>
+          <button type="submit" class="lead-form-modal__boton-guardar">Guardar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</template>
+
+<style scoped>
+.lead-form-modal {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+}
+
+.lead-form-modal__fondo {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 20, 30, 0.45);
+}
+
+.lead-form-modal__panel {
+  position: relative;
+  width: 100%;
+  max-width: 720px;
+  max-height: 90vh;
+  overflow-y: auto;
+  background: #fff;
+  border-radius: 10px;
+  padding: 1.5rem;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+}
+
+.lead-form-modal__titulo {
+  margin: 0 0 1rem;
+  font-size: 1.2rem;
+}
+
+.lead-form-modal__grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.85rem;
+  margin-bottom: 0.85rem;
+}
+
+.lead-form-modal__campo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: 0.85rem;
+}
+
+.lead-form-modal__campo input,
+.lead-form-modal__campo textarea {
+  padding: 0.45rem 0.6rem;
+  border: 1px solid #d0d3d9;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-family: inherit;
+}
+
+.lead-form-modal__campo--checkbox {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.lead-form-modal__campo--full {
+  margin-bottom: 0.85rem;
+}
+
+.lead-form-modal__error {
+  margin: 0 0 0.85rem;
+  color: #c0392b;
+  font-size: 0.85rem;
+}
+
+.lead-form-modal__acciones {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.6rem;
+}
+
+.lead-form-modal__boton-cancelar {
+  padding: 0.55rem 1rem;
+  border: 1px solid #d0d3d9;
+  border-radius: 6px;
+  background: #fff;
+  cursor: pointer;
+}
+
+.lead-form-modal__boton-guardar {
+  padding: 0.55rem 1rem;
+  border: none;
+  border-radius: 6px;
+  background: #2d6cdf;
+  color: #fff;
+  cursor: pointer;
+}
+</style>

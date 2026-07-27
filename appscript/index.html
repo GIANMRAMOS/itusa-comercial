@@ -1,0 +1,4562 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <base target="_top">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Permissions-Policy" content="geolocation=(), microphone=(), camera=(), payment=(), usb=(), magnetometer=(), gyroscope=(), accelerometer=()">
+    <title>Dashboard Control Comercial - ITUSA</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+        background: linear-gradient(180deg, #0066cc 0%, #004a99 50%, #003d7a 100%);
+        padding: 0;
+        min-height: 100vh;
+        position: relative;
+    }
+
+    body::after {
+        content: '';
+        position: fixed;
+        bottom: 0;
+        right: 0;
+        width: 500px;
+        height: 500px;
+        background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200"><polygon points="0,200 200,200 200,0" fill="rgba(255,255,255,0.05)"/></svg>');
+        background-size: contain;
+        background-repeat: no-repeat;
+        pointer-events: none;
+        z-index: 0;
+    }
+
+    .dashboard-container {
+        max-width: 1400px;
+        margin: 0 auto;
+        position: relative;
+        z-index: 1;
+    }
+
+    .header {
+        background: white;
+        padding: 30px 40px;
+        margin-bottom: 0;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+
+    .header-left {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+    }
+
+    .header-icon {
+        font-size: 2.5em;
+    }
+
+    .header-text h1 {
+        color: #0066cc;
+        font-size: 1.8em;
+        font-weight: 700;
+        margin-bottom: 5px;
+    }
+
+    .header-text p {
+        color: #666;
+        font-size: 0.9em;
+        font-weight: 400;
+    }
+
+    .app-version-info {
+        font-size: 0.75em;
+        color: #999;
+        margin-top: 4px;
+        font-weight: 400;
+    }
+
+    .header-stats {
+        display: flex;
+        gap: 30px;
+    }
+
+    .header-stat {
+        text-align: center;
+    }
+
+    .header-stat-value {
+        font-size: 2em;
+        font-weight: bold;
+        color: #0066cc;
+    }
+
+    .header-stat-label {
+        font-size: 0.85em;
+        color: #666;
+        margin-top: 5px;
+    }
+
+    /* Info Cards Section */
+    .info-cards {
+        background: rgba(255, 255, 255, 0.15);
+        backdrop-filter: blur(10px);
+        padding: 25px 40px;
+        margin-bottom: 0;
+        border-bottom: 3px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .info-cards-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 20px;
+    }
+
+    .info-card {
+        background: rgba(255, 255, 255, 0.1);
+        padding: 20px;
+        border-radius: 10px;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .info-card-label {
+        font-size: 0.85em;
+        color: rgba(255, 255, 255, 0.9);
+        margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        text-transform: uppercase;
+        font-weight: 600;
+    }
+
+    .info-card-value {
+        font-size: 1.8em;
+        color: white;
+        font-weight: 700;
+    }
+
+    .info-card-subvalue {
+        font-size: 0.85em;
+        color: rgba(255, 255, 255, 0.8);
+        margin-top: 5px;
+    }
+
+    .filters {
+        background: linear-gradient(180deg, #0066cc 0%, #004a99 50%, #003d7a 100%);
+        padding: 20px 40px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        display: flex;
+        gap: 15px;
+        flex-wrap: wrap;
+        align-items: center;
+    }
+
+    .filter-group {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+    }
+
+    .filter-group label {
+        font-size: 0.8em;
+        color: white;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+
+    .filter-group select, .filter-group input {
+        padding: 10px 15px;
+        border: 1px solid #ddd;
+        border-radius: 6px;
+        font-size: 0.95em;
+        outline: none;
+        transition: all 0.3s;
+        background: white;
+    }
+
+    .filter-group select:focus, .filter-group input:focus {
+        border-color: #0066cc;
+        box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.1);
+    }
+
+    /* Dashboard Two Columns Layout */
+    .dashboard-main-layout {
+        display: grid;
+        grid-template-columns: 1fr 2fr;
+        gap: 20px;
+        padding: 30px 40px;
+        background: white;
+        align-items: start;
+    }
+
+    /* Column 1: Últimos Seguimientos */
+    .ultimos-seguimientos-column {
+        background: white;
+        border-radius: 12px;
+        padding: 25px;
+        border: 1px solid #e0e0e0;
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        min-height: 0;
+    }
+
+    .ultimos-seguimientos-title {
+        font-size: 1.3em;
+        font-weight: 700;
+        color: #0066cc;
+        margin-bottom: 20px;
+        padding-bottom: 15px;
+        border-bottom: 2px solid #0066cc;
+        flex-shrink: 0;
+    }
+
+    .ultimos-seguimientos-list {
+        flex: 1;
+        overflow-y: auto;
+        overflow-x: hidden;
+        min-height: 0;
+        padding-right: 5px;
+    }
+
+    /* Scrollbar personalizado para la lista de seguimientos */
+    .ultimos-seguimientos-list::-webkit-scrollbar {
+        width: 8px;
+    }
+
+    .ultimos-seguimientos-list::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 10px;
+    }
+
+    .ultimos-seguimientos-list::-webkit-scrollbar-thumb {
+        background: #0066cc;
+        border-radius: 10px;
+    }
+
+    .ultimos-seguimientos-list::-webkit-scrollbar-thumb:hover {
+        background: #0052a3;
+    }
+
+    .ultimos-seguimientos-item {
+        padding: 15px;
+        margin-bottom: 12px;
+        background: #f8f9fa;
+        border-radius: 8px;
+        border-left: 3px solid #0066cc;
+        transition: all 0.2s;
+        cursor: pointer;
+    }
+
+    .ultimos-seguimientos-item:hover {
+        background: #e8f4fd;
+        transform: translateX(3px);
+        box-shadow: 0 2px 8px rgba(0, 102, 204, 0.2);
+    }
+
+    .ultimos-seguimientos-item-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 8px;
+    }
+
+    .ultimos-seguimientos-contact {
+        font-weight: 600;
+        color: #0066cc;
+        font-size: 0.95em;
+    }
+
+    .ultimos-seguimientos-date {
+        font-size: 0.8em;
+        color: #666;
+    }
+
+    .ultimos-seguimientos-text {
+        font-size: 0.9em;
+        color: #333;
+        line-height: 1.4;
+    }
+
+    .ultimos-seguimientos-empty {
+        text-align: center;
+        padding: 40px 20px;
+        color: #999;
+        font-style: italic;
+    }
+
+    /* Column 2: Indicadores */
+    .indicadores-column {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+        height: 100%;
+        min-height: 0;
+    }
+
+    .kpi-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 15px;
+        flex-shrink: 0;
+    }
+
+    .kpi-card {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        text-align: center;
+        border: 1px solid #e0e0e0;
+        transition: all 0.3s;
+    }
+
+    .kpi-card:hover {
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        transform: translateY(-2px);
+    }
+
+    .kpi-label {
+        color: #666;
+        font-size: 0.8em;
+        font-weight: 600;
+        margin-bottom: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .kpi-value {
+        font-size: 2em;
+        font-weight: 700;
+        margin: 5px 0;
+    }
+
+    .kpi-card:nth-child(1) .kpi-value { color: #0066cc; }
+    .kpi-card:nth-child(2) .kpi-value { color: #00a8e8; }
+    .kpi-card:nth-child(3) .kpi-value { color: #4CAF50; }
+    .kpi-card:nth-child(4) .kpi-value { color: #E91E63; }
+    .kpi-card:nth-child(5) .kpi-value { color: #667eea; }
+    .kpi-card:nth-child(6) .kpi-value { color: #FF9800; }
+    .kpi-card:nth-child(7) .kpi-value { color: #9C27B0; }
+
+    .kpi-trend {
+        font-size: 0.85em;
+        margin-top: 8px;
+    }
+
+    .trend-up { color: #4CAF50; }
+    .trend-down { color: #f44336; }
+
+    /* Progress Bar */
+    .progress-section {
+        padding: 20px 40px;
+        background: white;
+    }
+
+    .progress-bar-container {
+        width: 100%;
+        height: 30px;
+        background: #f0f0f0;
+        border-radius: 15px;
+        overflow: hidden;
+        position: relative;
+    }
+
+    .progress-bar {
+        height: 100%;
+        background: linear-gradient(90deg, #E91E63 0%, #F06292 100%);
+        transition: width 0.5s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: 700;
+        font-size: 0.9em;
+    }
+
+
+    /* Stats Cards Section - Colorful */
+    .stats-cards-section {
+        padding: 30px 40px;
+        background: white;
+    }
+
+    .stats-cards-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 20px;
+        flex-shrink: 0;
+    }
+
+    .stat-card {
+        padding: 30px;
+        border-radius: 15px;
+        color: white;
+        position: relative;
+        overflow: hidden;
+        min-height: 140px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+    }
+
+    .stat-card::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        right: -20%;
+        width: 200px;
+        height: 200px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 50%;
+    }
+
+    .stat-card::after {
+        content: '';
+        position: absolute;
+        bottom: -30%;
+        left: -10%;
+        width: 150px;
+        height: 150px;
+        background: rgba(255, 255, 255, 0.08);
+        border-radius: 50%;
+    }
+
+    .stat-card.purple {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+
+    .stat-card.pink {
+        background: linear-gradient(135deg, #f857a6 0%, #ff5858 100%);
+    }
+
+    .stat-card.cyan {
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    }
+
+    .stat-card.orange {
+        background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+    }
+
+    .stat-card-label {
+        font-size: 0.85em;
+        opacity: 0.9;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        margin-bottom: 10px;
+        position: relative;
+        z-index: 1;
+    }
+
+    .stat-card-value {
+        font-size: 2em;
+        font-weight: 700;
+        margin-bottom: 5px;
+        position: relative;
+        z-index: 1;
+    }
+
+    .stat-card-subvalue {
+        font-size: 0.9em;
+        opacity: 0.85;
+        position: relative;
+        z-index: 1;
+    }
+
+    /* Analysis Section */
+    .analysis-section {
+        padding: 30px 40px;
+        background: #f8f9fa;
+    }
+
+    .analysis-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 25px;
+    }
+
+    .analysis-title {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 1.3em;
+        font-weight: 700;
+        color: #333;
+    }
+
+
+    .analysis-content {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 25px;
+    }
+
+    /* Top Ranking Card */
+    .top-card {
+        background: white;
+        padding: 25px;
+        border-radius: 10px;
+        border: 1px solid #e0e0e0;
+    }
+
+    .top-card-header {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 20px;
+        padding-bottom: 15px;
+        border-bottom: 2px solid #f0f0f0;
+    }
+
+    .top-card-title {
+        font-size: 1.1em;
+        font-weight: 700;
+        color: #333;
+    }
+
+    .top-card-subtitle {
+        font-size: 0.85em;
+        color: #999;
+    }
+
+    .ranking-list {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .ranking-item {
+        padding: 15px;
+        border-radius: 10px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        transition: all 0.3s;
+    }
+
+    .ranking-item:hover {
+        transform: translateX(5px);
+    }
+
+    .ranking-item.rank-1 {
+        background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%);
+        color: #333;
+    }
+
+    .ranking-item.rank-2 {
+        background: linear-gradient(135deg, #e0e0e0 0%, #f5f5f5 100%);
+        color: #333;
+    }
+
+    .ranking-item.rank-3 {
+        background: linear-gradient(135deg, #cd7f32 0%, #daa520 100%);
+        color: white;
+    }
+
+    .ranking-item.rank-other {
+        background: #f8f9fa;
+        color: #333;
+    }
+
+    .ranking-left {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+    }
+
+    .ranking-position {
+        font-size: 1.5em;
+        font-weight: 700;
+        min-width: 30px;
+    }
+
+    .ranking-info {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .ranking-name {
+        font-weight: 700;
+        font-size: 1em;
+    }
+
+    .ranking-detail {
+        font-size: 0.85em;
+        opacity: 0.8;
+    }
+
+    .ranking-value {
+        text-align: right;
+    }
+
+    .ranking-main-value {
+        font-size: 1.5em;
+        font-weight: 700;
+    }
+
+    .ranking-sub-value {
+        font-size: 0.85em;
+        opacity: 0.8;
+    }
+
+    /* Timeline Section */
+    .timeline-section {
+        padding: 30px 40px;
+        background: white;
+    }
+
+    .timeline-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 25px;
+    }
+
+    .timeline-info-box {
+        background: #f8f9fa;
+        padding: 20px;
+        border-left: 4px solid #667eea;
+        border-radius: 8px;
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 30px;
+        margin-bottom: 25px;
+    }
+
+    .timeline-info-item {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .timeline-info-label {
+        font-size: 0.85em;
+        color: #666;
+        font-weight: 600;
+        margin-bottom: 5px;
+    }
+
+    .timeline-info-value {
+        font-size: 1.1em;
+        color: #333;
+        font-weight: 700;
+    }
+    /* Pestañas principales */
+    .main-tabs-section {
+        background: white;
+        padding: 0 40px;
+        border-bottom: 2px solid #e0e0e0;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+
+    .main-tabs-container {
+        display: flex;
+        gap: 0;
+    }
+
+    .main-tab-btn {
+        padding: 15px 30px;
+        border: none;
+        background: transparent;
+        color: #666;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s;
+        font-size: 1em;
+        border-bottom: 3px solid transparent;
+        position: relative;
+    }
+
+    .main-tab-btn:hover {
+        background: #f5f5f5;
+        color: #0066cc;
+    }
+
+    .main-tab-btn.active {
+        color: #0066cc;
+        border-bottom-color: #0066cc;
+        background: #f8f9fa;
+    }
+
+    .tab-content {
+        display: none;
+    }
+
+    .tab-content.active {
+        display: block;
+    }
+
+    #gestionContent {
+        background: white;
+    }
+
+    #gestionContent .table-container {
+        border: none;
+        box-shadow: none;
+        margin: 0;
+        padding: 0;
+    }
+
+    #gestionContent table {
+        margin: 0;
+    }
+
+    #gestionContent .search-section {
+        margin-bottom: 0 !important;
+    }
+
+    .tabs-section {
+        padding: 20px 40px;
+        background: white;
+        border-bottom: 1px solid #e0e0e0;
+    }
+
+    .tabs-container {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+
+    .tab-btn {
+        padding: 12px 25px;
+        border: none;
+        border-radius: 25px;
+        background: white;
+        color: #666;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s;
+        border: 2px solid #e0e0e0;
+        font-size: 0.95em;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .tab-btn:hover {
+        background: #f5f5f5;
+    }
+
+    .tab-btn.active {
+        background: linear-gradient(135deg, #E91E63 0%, #F06292 100%);
+        color: white;
+        border-color: #E91E63;
+    }
+
+    .charts-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
+        gap: 25px;
+        padding: 30px 40px;
+        background: #f8f9fa;
+    }
+
+    .chart-card {
+        background: white;
+        padding: 25px;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        border: 1px solid #e0e0e0;
+    }
+
+    .chart-card.full-width {
+        grid-column: 1 / -1;
+    }
+
+    .chart-title {
+        font-size: 1.1em;
+        color: #333;
+        margin-bottom: 20px;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding-bottom: 15px;
+        border-bottom: 2px solid #f0f0f0;
+    }
+
+    .chart-icon {
+        width: 6px;
+        height: 6px;
+        background: #0066cc;
+        border-radius: 50%;
+    }
+
+    .table-container {
+        background: white;
+        padding: 30px 40px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        margin: 25px 40px;
+        border-radius: 8px;
+        border: 1px solid #e0e0e0;
+    }
+
+    .table-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+    }
+
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        background: white;
+    }
+
+    th {
+        background: white;
+        color: #666;
+        padding: 15px;
+        text-align: left;
+        font-weight: 600;
+        font-size: 0.85em;
+        border-bottom: 2px solid #e0e0e0;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    td {
+        padding: 18px 15px;
+        border-bottom: 1px solid #f0f0f0;
+        font-size: 0.95em;
+        color: #333;
+    }
+
+    tr:hover {
+        background: #f8f9fa;
+    }
+
+    tr:last-child td {
+        border-bottom: none;
+    }
+
+    .lead-row {
+        transition: background-color 0.2s;
+    }
+
+    .lead-row:hover {
+        background: #f0f7ff;
+    }
+
+    .lead-row.expanded {
+        background: #e8f4fd;
+    }
+
+    .prospeccion-main-row {
+        transition: background-color 0.2s;
+        cursor: pointer;
+    }
+
+    .prospeccion-main-row:hover {
+        background: #f0f7ff;
+    }
+
+    .prospeccion-main-row.expanded {
+        background: #e8f4fd;
+    }
+
+    .prospeccion-main-row .table-actions {
+        cursor: default;
+    }
+
+    .expand-row {
+        background: #f8f9fa;
+    }
+
+    .expand-cell {
+        padding: 0 !important;
+        border-top: 2px solid #0066cc;
+    }
+
+    .expand-content {
+        padding: 25px 40px;
+        background: white;
+        border-left: 4px solid #0066cc;
+        margin: 0 15px;
+    }
+
+    .expand-header {
+        font-size: 1.1em;
+        color: #0066cc;
+        margin-bottom: 20px;
+        padding-bottom: 10px;
+        border-bottom: 2px solid #e0e0e0;
+        display: flex;
+        align-items: center;
+        gap: 15px;
+    }
+
+    .seguimientos-container {
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+    }
+
+    .seguimiento-item-expanded {
+        background: #f8f9fa;
+        padding: 15px 20px;
+        border-radius: 8px;
+        border-left: 3px solid #0066cc;
+        transition: all 0.2s;
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        gap: 20px;
+    }
+
+    .seguimiento-item-expanded:hover {
+        background: #e8f4fd;
+        transform: translateX(5px);
+    }
+
+    .seguimiento-date-expanded {
+        font-size: 0.85em;
+        color: #0066cc;
+        font-weight: 600;
+        min-width: 120px;
+        flex-shrink: 0;
+    }
+
+    .seguimiento-text-expanded {
+        font-size: 0.95em;
+        color: #333;
+        line-height: 1.5;
+        flex: 1;
+    }
+
+    .seguimiento-delete-expanded {
+        background: none;
+        border: none;
+        color: #e74c3c;
+        cursor: pointer;
+        font-size: 1.2em;
+        padding: 5px 10px;
+        transition: color 0.3s;
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .seguimiento-delete-expanded:hover {
+        color: #c0392b;
+        transform: scale(1.1);
+    }
+
+    /* Estilos para tabla de facturación en modal */
+    .facturacion-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 20px;
+    }
+
+    .facturacion-table thead {
+        background: #0066cc;
+        color: white;
+    }
+
+    .facturacion-table th {
+        padding: 12px;
+        text-align: left;
+        font-weight: 600;
+        font-size: 0.9em;
+        border-bottom: 2px solid #0052a3;
+    }
+
+    .facturacion-table td {
+        padding: 12px;
+        border-bottom: 1px solid #e0e0e0;
+        font-size: 0.85em;
+        color: #333;
+    }
+
+    .facturacion-table tbody tr:hover {
+        background: #f8f9fa;
+    }
+
+    .facturacion-table tbody tr:last-child td {
+        border-bottom: none;
+    }
+
+    .facturacion-monto {
+        font-weight: 600;
+        color: #27ae60;
+    }
+
+    .status-badge {
+        display: inline-block;
+        padding: 6px 14px;
+        border-radius: 20px;
+        font-size: 0.8em;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .status-convertido { 
+        background: #E8F5E9; 
+        color: #2E7D32; 
+    }
+    
+    .status-proceso { 
+        background: #E3F2FD; 
+        color: #1565C0; 
+    }
+    
+    .status-rechazado { 
+        background: #FFEBEE; 
+        color: #C62828; 
+    }
+
+    /* Modal styles */
+    .modal {
+        display: none;
+        position: fixed;
+        z-index: 1000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.6);
+        overflow-y: auto;
+    }
+
+    .modal.active {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .modal-content {
+        background: white;
+        padding: 30px;
+        border-radius: 15px;
+        max-width: 800px;
+        width: 90%;
+        max-height: 90vh;
+        overflow-y: auto;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+        animation: modalSlideIn 0.3s ease;
+    }
+
+    @keyframes modalSlideIn {
+        from {
+            transform: translateY(-50px);
+            opacity: 0;
+        }
+        to {
+            transform: translateY(0);
+            opacity: 1;
+        }
+    }
+
+    .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 25px;
+        padding-bottom: 15px;
+        border-bottom: 2px solid #f0f0f0;
+    }
+
+    .modal-header h2 {
+        color: #2c3e50;
+        font-size: 1.5em;
+    }
+
+    .close-btn {
+        background: none;
+        border: none;
+        font-size: 2em;
+        color: #7f8c8d;
+        cursor: pointer;
+        transition: color 0.3s;
+    }
+
+    .close-btn:hover {
+        color: #2c3e50;
+    }
+
+    .form-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 20px;
+        margin-bottom: 20px;
+    }
+
+    .form-group {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .form-group.full-width {
+        grid-column: 1 / -1;
+    }
+
+    .form-group label {
+        font-weight: 600;
+        color: #2c3e50;
+        font-size: 0.95em;
+    }
+
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+        padding: 12px;
+        border: 2px solid #e0e0e0;
+        border-radius: 8px;
+        font-size: 1em;
+        outline: none;
+        transition: all 0.3s;
+        font-family: inherit;
+    }
+
+    .form-group input:focus,
+    .form-group select:focus,
+    .form-group textarea:focus {
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+
+    .form-group textarea {
+        resize: vertical;
+        min-height: 80px;
+    }
+
+    .btn {
+        padding: 12px 25px;
+        border: none;
+        border-radius: 6px;
+        font-size: 0.95em;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        justify-content: center;
+    }
+
+    .btn-primary {
+        background: #0066cc;
+        color: white;
+    }
+
+    .btn-primary:hover {
+        background: #0052a3;
+        box-shadow: 0 4px 12px rgba(0, 102, 204, 0.3);
+    }
+
+    .btn-secondary {
+        background: white;
+        color: #666;
+        border: 1px solid #ddd;
+    }
+
+    .btn-secondary:hover {
+        background: #f5f5f5;
+        border-color: #ccc;
+    }
+
+    .btn-success {
+        background: #4CAF50;
+        color: white;
+    }
+
+    .btn-success:hover {
+        background: #45a049;
+        box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
+    }
+
+    .btn-danger {
+        background: #f44336;
+        color: white;
+    }
+
+    .btn-danger:hover {
+        background: #da190b;
+        box-shadow: 0 4px 12px rgba(244, 67, 54, 0.3);
+    }
+
+    .form-actions {
+        display: flex;
+        gap: 15px;
+        justify-content: flex-end;
+        margin-top: 25px;
+        padding-top: 20px;
+        border-top: 1px solid #e0e0e0;
+    }
+
+    .add-lead-btn {
+        position: fixed;
+        bottom: 30px;
+        right: 30px;
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #E91E63 0%, #F06292 100%);
+        color: white;
+        border: none;
+        font-size: 2em;
+        cursor: pointer;
+        box-shadow: 0 4px 20px rgba(233, 30, 99, 0.4);
+        transition: all 0.3s;
+        z-index: 999;
+    }
+
+    .add-lead-btn:hover {
+        transform: scale(1.1);
+        box-shadow: 0 6px 30px rgba(233, 30, 99, 0.6);
+    }
+
+    .seguimiento-section {
+        margin-top: 30px;
+        padding: 20px;
+        background: #f8f9fa;
+        border-radius: 10px;
+    }
+
+    .seguimiento-section h3 {
+        color: #2c3e50;
+        margin-bottom: 15px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .seguimiento-list {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        max-height: 300px;
+        overflow-y: auto;
+    }
+
+    .seguimiento-item {
+        background: white;
+        padding: 15px;
+        border-radius: 8px;
+        border-left: 4px solid #667eea;
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+    }
+
+    .seguimiento-content {
+        flex: 1;
+    }
+
+    .seguimiento-date {
+        font-size: 0.85em;
+        color: #7f8c8d;
+        font-weight: 600;
+        margin-bottom: 5px;
+    }
+
+    .seguimiento-text {
+        color: #2c3e50;
+    }
+
+    .seguimiento-delete {
+        background: none;
+        border: none;
+        color: #e74c3c;
+        cursor: pointer;
+        font-size: 1.2em;
+        padding: 5px;
+        transition: color 0.3s;
+    }
+
+    .seguimiento-delete:hover {
+        color: #c0392b;
+    }
+
+    .add-seguimiento-form {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 20px;
+    }
+
+    .add-seguimiento-form input {
+        flex: 1;
+    }
+
+    .table-actions {
+        display: flex;
+        gap: 8px;
+    }
+
+    .action-btn {
+        padding: 8px 14px;
+        border: none;
+        border-radius: 6px;
+        font-size: 0.85em;
+        cursor: pointer;
+        transition: all 0.3s;
+        font-weight: 600;
+    }
+
+    .action-btn.edit {
+        background: #2196F3;
+        color: white;
+    }
+
+    .action-btn.edit:hover {
+        background: #1976D2;
+        box-shadow: 0 2px 8px rgba(33, 150, 243, 0.3);
+    }
+
+    .action-btn.delete {
+        background: #f44336;
+        color: white;
+    }
+
+    .action-btn.delete:hover {
+        background: #da190b;
+        box-shadow: 0 2px 8px rgba(244, 67, 54, 0.3);
+    }
+
+    .action-btn.track {
+        background: #FF9800;
+        color: white;
+    }
+
+    .action-btn.track:hover {
+        background: #F57C00;
+        box-shadow: 0 2px 8px rgba(255, 152, 0, 0.3);
+    }
+
+    /* Percentage badges */
+    .percentage-badge {
+        display: inline-block;
+        padding: 4px 10px;
+        border-radius: 12px;
+        font-size: 0.8em;
+        font-weight: 700;
+        min-width: 45px;
+        text-align: center;
+    }
+
+    .percentage-high {
+        background: #4CAF50;
+        color: white;
+    }
+
+    .percentage-medium {
+        background: #FF9800;
+        color: white;
+    }
+
+    .percentage-low {
+        background: #f44336;
+        color: white;
+    }
+
+    .percentage-zero {
+        background: #9E9E9E;
+        color: white;
+    }
+
+    @media (max-width: 768px) {
+        .charts-grid {
+            grid-template-columns: 1fr;
+        }
+        
+        .header {
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .form-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .add-lead-btn {
+            width: 50px;
+            height: 50px;
+            font-size: 1.5em;
+        }
+
+        .dashboard-main-layout {
+            grid-template-columns: 1fr;
+            padding: 20px;
+        }
+
+        .kpi-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+
+        .stats-cards-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+
+
+</head>
+<body>
+
+    <script>
+    let rawData = [];
+    let filteredData = [];
+    let tableData = []; // Datos filtrados para la tabla (incluye búsqueda)
+    let charts = {};
+    let editingLeadIndex = -1;
+    let trackingLeadIndex = -1;
+    let isLoadingData = false; // Flag para prevenir múltiples llamadas simultáneas
+    let isInitialized = false; // Flag para verificar si la página ya se inicializó
+    let prospeccionRawData = []; // Datos completos de prospección (Hoja 1)
+    var prospeccionNotasByRow = {}; // Notas por fila de Hoja 1: { "2": [{fecha, texto}], ... }
+    let prospeccionDataLoadedOnce = false; // Cargar datos solo la primera vez que se selecciona la pestaña
+    var prospeccionSearchText = ''; // Búsqueda por Cliente o Contacto en Prospección
+
+    // ============================================
+    // FUNCIONES DE FECHA - GMT-5
+    // ============================================
+
+    // Obtener la fecha actual en GMT-5
+    function getCurrentDateGMT5() {
+        const now = new Date();
+        // Obtener la hora UTC actual
+        const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+        // GMT-5 es UTC-5, así que restamos 5 horas (5 * 60 * 60000 milisegundos)
+        const gmt5Offset = -5 * 60 * 60000;
+        return new Date(utc + gmt5Offset);
+    }
+
+    // Convertir una fecha string a Date en GMT-5
+    function parseDateGMT5(dateString) {
+        if (!dateString) return null;
+        // Si es una fecha en formato YYYY-MM-DD, interpretarla como fecha local en GMT-5
+        if (typeof dateString === 'string' && dateString.match(/^\d{4}-\d{2}-\d{2}$/)) {
+            const [year, month, day] = dateString.split('-').map(Number);
+            // Crear fecha como si fuera medianoche en GMT-5
+            // Para GMT-5, necesitamos crear la fecha en UTC+5 (para compensar)
+            // Pero en realidad, para fechas sin hora, simplemente creamos la fecha local
+            // y la tratamos como si fuera GMT-5
+            const date = new Date(year, month - 1, day);
+            return date;
+        }
+        // Si ya es una fecha, usarla directamente
+        if (dateString instanceof Date) {
+            return dateString;
+        }
+        // Intentar parsear como fecha
+        const date = new Date(dateString);
+        if (isNaN(date.getTime())) return null;
+        return date;
+    }
+
+    // Formatear fecha a string YYYY-MM-DD en GMT-5
+    function formatDateGMT5(date) {
+        if (!date) return '';
+        const d = date instanceof Date ? date : parseDateGMT5(date);
+        if (!d) return '';
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    }
+
+    // Obtener fecha de hoy en formato YYYY-MM-DD en GMT-5
+    function getTodayGMT5() {
+        return formatDateGMT5(getCurrentDateGMT5());
+    }
+
+    // Comparar fechas en GMT-5
+    function compareDatesGMT5(date1, date2) {
+        const d1 = parseDateGMT5(date1);
+        const d2 = parseDateGMT5(date2);
+        if (!d1 || !d2) return 0;
+        return d1.getTime() - d2.getTime();
+    }
+
+    // Formatear fecha para mostrar en español (DD/MM) en GMT-5
+    function formatDateForDisplay(date) {
+        if (!date) return '';
+        const d = date instanceof Date ? date : parseDateGMT5(date);
+        if (!d) return '';
+        const day = String(d.getDate()).padStart(2, '0');
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        return `${day}/${month}`;
+    }
+
+    // Plugin personalizado para mostrar valores en los gráficos
+    const datalabelsPlugin = {
+        id: 'datalabels',
+        afterDraw: function(chart) {
+            const ctx = chart.ctx;
+            ctx.save();
+            ctx.font = 'bold 12px Arial';
+            ctx.fillStyle = '#333';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'bottom';
+            
+            chart.data.datasets.forEach((dataset, datasetIndex) => {
+                const meta = chart.getDatasetMeta(datasetIndex);
+                if (meta && meta.data) {
+                    meta.data.forEach((element, index) => {
+                        const value = dataset.data[index];
+                        if (value !== null && value !== undefined && value > 0 && element) {
+                            const x = element.x;
+                            const y = element.y - (chart.config.type === 'bar' ? 5 : 8);
+                            ctx.fillText(value.toString(), x, y);
+                        }
+                    });
+                }
+            });
+            ctx.restore();
+        }
+    };
+
+    // ============================================
+    // FUNCIONES DE UTILIDAD - SEGURIDAD
+    // ============================================
+
+    // Función para escapar HTML y prevenir XSS
+    function escapeHtml(text) {
+        if (text == null || text === undefined) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    // ============================================
+    // FUNCIONES DE CARGA DE DATOS
+    // ============================================
+
+    function showLoading() {
+        try {
+        const loadingEl = document.getElementById('loading');
+        if (loadingEl) {
+            loadingEl.style.display = 'flex';
+            }
+        } catch (error) {
+            console.error('Error en showLoading:', error);
+        }
+    }
+
+    function hideLoading() {
+        try {
+        const loadingEl = document.getElementById('loading');
+        if (loadingEl) {
+            loadingEl.style.display = 'none';
+            }
+        } catch (error) {
+            console.error('Error en hideLoading:', error);
+        }
+    }
+
+    function loadData() {
+        // Prevenir múltiples llamadas simultáneas
+        if (isLoadingData) {
+            console.warn('loadData ya está en ejecución, saltando llamada duplicada');
+            return;
+        }
+        
+        try {
+            isLoadingData = true;
+        showLoading();
+        google.script.run
+            .withSuccessHandler(function(data) {
+                    try {
+                rawData = data || [];
+                filteredData = [...rawData];
+                        tableData = [...filteredData]; // Inicializar tableData
+                hideLoading();
+                        
+                        try {
+                initFilters();
+                        } catch (filterError) {
+                            console.error('Error en initFilters:', filterError);
+                        }
+                        
+                        try {
+                updateDashboard();
+                        } catch (dashboardError) {
+                            console.error('Error en updateDashboard:', dashboardError);
+                            hideLoading();
+                            alert('⚠️ Error al actualizar el dashboard. Los datos se cargaron pero puede haber problemas de visualización.');
+                        }
+                    } catch (error) {
+                        hideLoading();
+                        console.error('Error procesando datos:', error);
+                        console.error('Stack trace:', error.stack);
+                        alert('❌ Error al procesar los datos:\n' + (error.message || error.toString()) + '\n\nPor favor, recargue la página.');
+                    } finally {
+                        isLoadingData = false;
+                    }
+            })
+            .withFailureHandler(function(error) {
+                    isLoadingData = false;
+                hideLoading();
+                    console.error('Error al cargar datos:', error);
+                    console.error('Tipo de error:', typeof error);
+                    console.error('Stack trace:', error ? error.stack : 'No disponible');
+                    
+                    let errorMessage = 'Error desconocido';
+                    if (error) {
+                        if (error.message) {
+                            errorMessage = error.message;
+                        } else if (typeof error === 'string') {
+                            errorMessage = error;
+                        } else {
+                            errorMessage = JSON.stringify(error);
+                        }
+                    }
+                    
+                    alert('❌ Error al cargar los datos:\n' + errorMessage + '\n\nPor favor, recargue la página e intente nuevamente.');
+            })
+            .getAllLeads();
+        } catch (error) {
+            isLoadingData = false;
+            hideLoading();
+            console.error('Error al llamar loadData:', error);
+            console.error('Stack trace:', error.stack);
+            alert('❌ Error crítico al cargar datos:\n' + (error.message || error.toString()) + '\n\nPor favor, recargue la página.');
+        }
+    }
+
+    function refreshData() {
+        loadData();
+    }
+
+    // ============================================
+    // FUNCIONES DE FILTROS
+    // ============================================
+
+    function initFilters() {
+        try {
+            if (!rawData || rawData.length === 0) {
+                console.warn('No hay datos para inicializar filtros');
+                return;
+            }
+            
+            const sources = [...new Set(rawData.map(d => d && d.Source ? d.Source : null))].filter(s => s);
+        const sourceSelect = document.getElementById('filterSource');
+        
+            if (!sourceSelect) {
+                console.warn('filterSource no encontrado, saltando initFilters');
+                return;
+            }
+        
+        // Limpiar opciones existentes excepto "Todas las fuentes"
+            try {
+        sourceSelect.innerHTML = '<option value="all">Todas las fuentes</option>';
+            } catch (e) {
+                console.error('Error limpiando sourceSelect:', e);
+                return;
+            }
+        
+        sources.forEach(source => {
+                try {
+            const option = document.createElement('option');
+            option.value = source;
+            option.textContent = source;
+            sourceSelect.appendChild(option);
+                } catch (e) {
+                    console.error('Error agregando opción de fuente:', e);
+                }
+        });
+
+            // Event listeners (solo agregar si no existen ya)
+        const filterSource = document.getElementById('filterSource');
+        const filterDateFrom = document.getElementById('filterDateFrom');
+        const filterDateTo = document.getElementById('filterDateTo');
+        const filterStatus = document.getElementById('filterStatus');
+        
+            try {
+                if (filterSource && !filterSource.hasAttribute('data-listener-added')) {
+                    filterSource.addEventListener('change', applyFilters);
+                    filterSource.setAttribute('data-listener-added', 'true');
+                }
+                if (filterDateFrom && !filterDateFrom.hasAttribute('data-listener-added')) {
+                    filterDateFrom.addEventListener('change', applyFilters);
+                    filterDateFrom.setAttribute('data-listener-added', 'true');
+                }
+                if (filterDateTo && !filterDateTo.hasAttribute('data-listener-added')) {
+                    filterDateTo.addEventListener('change', applyFilters);
+                    filterDateTo.setAttribute('data-listener-added', 'true');
+                }
+                if (filterStatus && !filterStatus.hasAttribute('data-listener-added')) {
+                    filterStatus.addEventListener('change', applyFilters);
+                    filterStatus.setAttribute('data-listener-added', 'true');
+                }
+            } catch (e) {
+                console.error('Error agregando event listeners a filtros:', e);
+            }
+        } catch (error) {
+            console.error('Error en initFilters:', error);
+        }
+    }
+
+    function applyFilters() {
+        const filterSource = document.getElementById('filterSource');
+        const filterDateFrom = document.getElementById('filterDateFrom');
+        const filterDateTo = document.getElementById('filterDateTo');
+        const filterStatus = document.getElementById('filterStatus');
+        
+        if (!filterSource || !filterDateFrom || !filterDateTo || !filterStatus) return;
+        
+        const source = filterSource.value;
+        const dateFrom = filterDateFrom.value;
+        const dateTo = filterDateTo.value;
+        const status = filterStatus.value;
+
+        filteredData = rawData.filter(d => {
+            if (source !== 'all' && d.Source !== source) return false;
+            if (dateFrom && d.Creación && d.Creación < dateFrom) return false;
+            if (dateTo && d.Creación && d.Creación > dateTo) return false;
+            
+            if (status !== 'all') {
+                const leadStatus = getStatus(d);
+                if (status !== leadStatus) return false;
+            }
+            
+            return true;
+        });
+
+        updateDashboard();
+        applySearch(); // Aplicar búsqueda también cuando cambian los filtros
+    }
+
+    // ============================================
+    // FUNCIONES DE BÚSQUEDA
+    // ============================================
+
+    var applySearchTimeout = null;
+    function applySearch() {
+        const searchInput = document.getElementById('searchInput');
+        if (!searchInput) {
+            tableData = [...filteredData];
+            updateTable();
+            return;
+        }
+        const searchTerm = searchInput.value.trim().toLowerCase();
+        if (searchTerm === '') {
+            tableData = [...filteredData];
+        } else {
+            tableData = filteredData.filter(d => {
+                const contact = (d.Contact || '').toLowerCase();
+                const company = (d.Company || '').toLowerCase();
+                return contact.includes(searchTerm) || company.includes(searchTerm);
+            });
+        }
+        updateTable();
+    }
+    function applySearchDebounced() {
+        if (applySearchTimeout) clearTimeout(applySearchTimeout);
+        applySearchTimeout = setTimeout(applySearch, 200);
+    }
+
+    function clearSearch() {
+        const searchInput = document.getElementById('searchInput');
+        if (searchInput) {
+            searchInput.value = '';
+            applySearch();
+        }
+    }
+
+    // ============================================
+    // FUNCIONES DE UTILIDAD
+    // ============================================
+
+    function getStatus(lead) {
+        if (lead.Conversión) return 'convertido';
+        if (lead.Rechazo) return 'rechazado';
+        return 'proceso';
+    }
+
+    function getDaysInProcess(lead) {
+        if (!lead.Creación) return 0;
+        const start = parseDateGMT5(lead.Creación);
+        const end = lead.Conversión ? parseDateGMT5(lead.Conversión) : getCurrentDateGMT5();
+        if (!start || !end) return 0;
+        return Math.floor((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+    }
+
+    // ============================================
+    // ACTUALIZACIÓN DE DASHBOARD
+    // ============================================
+
+    function updateKPIs() {
+        const totalLeads = filteredData.length;
+        const conversiones = filteredData.filter(d => d.Conversión).length;
+        const calificados = filteredData.filter(d => d.Calificado).length;
+        const visitas = filteredData.filter(d => d.Visita).length;
+        const totalFacturado = filteredData.reduce((sum, d) => sum + (d.Factura || 0), 0);
+        const conversionRate = totalLeads > 0 ? (conversiones / totalLeads * 100).toFixed(1) : 0;
+        
+        const facturasValidas = filteredData.filter(d => d.Factura);
+        const ticketPromedio = facturasValidas.length > 0 ? 
+            (totalFacturado / facturasValidas.length).toFixed(0) : 0;
+
+        const leadsConvertidos = filteredData.filter(d => d.Conversión && d.Creación);
+        const diasPromedio = leadsConvertidos.length > 0 ?
+            Math.round(leadsConvertidos.reduce((sum, d) => {
+                return sum + getDaysInProcess(d);
+            }, 0) / leadsConvertidos.length) : 0;
+
+        // Actualizar KPIs con verificación de existencia de elementos
+        const updateElement = (id, value) => {
+            const el = document.getElementById(id);
+            if (el) {
+                try {
+                    el.textContent = value;
+                } catch (e) {
+                    console.error(`Error al actualizar ${id}:`, e);
+                }
+            }
+        };
+
+        updateElement('totalLeads', totalLeads);
+        updateElement('totalFacturado', `$${totalFacturado.toLocaleString()}`);
+        updateElement('kpiTotalLeads', totalLeads);
+        updateElement('kpiCalificados', calificados);
+        updateElement('kpiVisitas', visitas);
+        updateElement('kpiConversiones', conversiones);
+        updateElement('kpiConversion', `${conversionRate}%`);
+        updateElement('kpiDiasConversion', diasPromedio);
+    }
+
+    function switchMainTab(tab, event) {
+        try {
+            // Verificar que los elementos existan antes de usarlos
+            const mainTabBtns = document.querySelectorAll('.main-tab-btn');
+            const tabContents = document.querySelectorAll('.tab-content');
+            
+            if (mainTabBtns.length === 0 || tabContents.length === 0) {
+                console.warn('Elementos de pestañas no encontrados, esperando...');
+                setTimeout(function() {
+                    switchMainTab(tab, event);
+                }, 100);
+                return;
+            }
+            
+            // Remove active class from all main tabs
+            mainTabBtns.forEach(btn => {
+                try {
+                    btn.classList.remove('active');
+                } catch (e) {
+                    console.error('Error removiendo active de botón:', e);
+                }
+            });
+            
+            // Remove active class from all tab contents
+            tabContents.forEach(content => {
+                try {
+                    content.classList.remove('active');
+                } catch (e) {
+                    console.error('Error removiendo active de contenido:', e);
+                }
+            });
+            
+            // Add active class to clicked tab
+            if (event && event.target) {
+                try {
+                    event.target.classList.add('active');
+                } catch (e) {
+                    console.error('Error agregando active a botón:', e);
+                }
+            } else {
+                // Fallback: buscar el botón por el id
+                let btnId = 'tabDashboard';
+                if (tab === 'gestion') btnId = 'tabGestion';
+                else if (tab === 'prospeccion') btnId = 'tabProspeccion';
+                
+                const btn = document.getElementById(btnId);
+                if (btn) {
+                    try {
+                        btn.classList.add('active');
+                    } catch (e) {
+                        console.error('Error agregando active a botón fallback:', e);
+                    }
+                }
+            }
+            
+            var mainFiltersEl = document.getElementById('mainFilters');
+            if (mainFiltersEl) {
+                mainFiltersEl.style.display = (tab === 'prospeccion') ? 'none' : '';
+            }
+            if (document.getElementById('prospeccionSearchSection')) {
+                document.getElementById('prospeccionSearchSection').style.display = (tab === 'prospeccion') ? 'block' : 'none';
+            }
+            // Show corresponding content
+            if (tab === 'dashboard') {
+                const dashboardContent = document.getElementById('dashboardContent');
+                if (dashboardContent) {
+                    try {
+                        dashboardContent.classList.add('active');
+                        // Actualizar el dashboard cuando se cambia a esta pestaña
+                        setTimeout(function() {
+                            try {
+                                updateDashboard();
+                            } catch (e) {
+                                console.error('Error en updateDashboard desde switchMainTab:', e);
+                            }
+                        }, 50);
+                    } catch (e) {
+                        console.error('Error activando dashboard:', e);
+                    }
+                } else {
+                    console.warn('dashboardContent no encontrado');
+                }
+            } else if (tab === 'gestion') {
+                const gestionContent = document.getElementById('gestionContent');
+                if (gestionContent) {
+                    try {
+                        gestionContent.classList.add('active');
+                    } catch (e) {
+                        console.error('Error activando gestión:', e);
+                    }
+                } else {
+                    console.warn('gestionContent no encontrado');
+                }
+            } else if (tab === 'prospeccion') {
+                const prospeccionContent = document.getElementById('prospeccionContent');
+                if (prospeccionContent) {
+                    try {
+                        prospeccionContent.classList.add('active');
+                        // Cargar datos solo la primera vez que se selecciona la pestaña; después usar el botón Actualizar
+                        if (!prospeccionDataLoadedOnce) {
+                            prospeccionDataLoadedOnce = true;
+                            setTimeout(function() {
+                                try {
+                                    loadProspeccionData();
+                                } catch (e) {
+                                    console.error('Error cargando datos de prospección:', e);
+                                }
+                            }, 50);
+                        }
+                    } catch (e) {
+                        console.error('Error activando prospección:', e);
+                    }
+                } else {
+                    console.warn('prospeccionContent no encontrado');
+                }
+            }
+        } catch (error) {
+            console.error('Error en switchMainTab:', error);
+        }
+    }
+
+    function switchTab(tab, event) {
+        // Remove active class from all tabs
+        document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+        
+        // Add active class to clicked tab
+        if (event && event.target) {
+            event.target.classList.add('active');
+        } else {
+            // Fallback: buscar el botón por el texto del tab
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                if (btn.textContent.includes(tab === 'charts' ? 'Estadísticas' : 
+                                             tab === 'leads' ? 'Gestión' : 'Configuración')) {
+                    btn.classList.add('active');
+                }
+            });
+        }
+        
+        // You can add tab switching logic here if needed
+        console.log('Switched to tab:', tab);
+    }
+
+    function updateCharts() {
+        try {
+        // Embudo de Conversión - Formato similar a Top Fuentes
+            try {
+        updateFunnel();
+            } catch (funnelError) {
+                console.error('Error en updateFunnel:', funnelError);
+            }
+
+        // Chart: Evolución Temporal
+        // Calcular datos mensuales para el gráfico de evolución
+        const monthlyData = filteredData.reduce((acc, d) => {
+                try {
+                    if (d && d.Creación) {
+                const month = d.Creación.substring(0, 7);
+                acc[month] = (acc[month] || 0) + 1;
+                    }
+                } catch (e) {
+                    console.error('Error procesando fecha en monthlyData:', e);
+            }
+            return acc;
+        }, {});
+
+        const sortedMonths = Object.keys(monthlyData).sort();
+        
+        if (charts.evolucion) charts.evolucion.destroy();
+        const chartEvolucionEl = document.getElementById('chartEvolucion');
+        if (chartEvolucionEl) {
+            charts.evolucion = new Chart(chartEvolucionEl, {
+                type: 'bar',
+                data: {
+                    labels: sortedMonths,
+                    datasets: [{
+                        label: 'Leads Totales',
+                        data: sortedMonths.map(m => monthlyData[m]),
+                        backgroundColor: '#667eea',
+                        borderColor: '#667eea',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    animation: {
+                        duration: 0
+                    },
+                    plugins: {
+                        legend: { display: true },
+                        tooltip: {
+                            enabled: true
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                stepSize: 1,
+                                callback: function(value) {
+                                    return value;
+                                }
+                            }
+                        }
+                    }
+                },
+                plugins: [datalabelsPlugin]
+            });
+        }
+
+        // Chart: Últimos 30 Días
+        const hoy = getCurrentDateGMT5();
+        const hace30Dias = new Date(hoy);
+        hace30Dias.setDate(hace30Dias.getDate() - 30);
+        
+        const leadsUltimos30Dias = filteredData.filter(d => {
+            if (!d.Creación) return false;
+            const fechaCreacion = parseDateGMT5(d.Creación);
+            if (!fechaCreacion) return false;
+            return fechaCreacion >= hace30Dias && fechaCreacion <= hoy;
+        });
+        
+        // Agrupar por día
+        const dailyData = {};
+        leadsUltimos30Dias.forEach(lead => {
+            if (lead.Creación) {
+                const fecha = parseDateGMT5(lead.Creación);
+                if (fecha) {
+                    const dia = formatDateGMT5(fecha);
+                dailyData[dia] = (dailyData[dia] || 0) + 1;
+                }
+            }
+        });
+        
+        // Generar array de los últimos 30 días
+        const ultimos30DiasLabels = [];
+        const ultimos30DiasData = [];
+        for (let i = 29; i >= 0; i--) {
+            const fecha = new Date(hoy);
+            fecha.setDate(fecha.getDate() - i);
+            const diaStr = formatDateGMT5(fecha);
+            const fechaFormateada = formatDateForDisplay(fecha);
+            ultimos30DiasLabels.push(fechaFormateada);
+            ultimos30DiasData.push(dailyData[diaStr] || 0);
+        }
+        
+        if (charts.ultimos30Dias) charts.ultimos30Dias.destroy();
+        const chartUltimos30DiasEl = document.getElementById('chartUltimos30Dias');
+        if (chartUltimos30DiasEl) {
+            charts.ultimos30Dias = new Chart(chartUltimos30DiasEl, {
+                type: 'line',
+                data: {
+                    labels: ultimos30DiasLabels,
+                    datasets: [{
+                        label: 'Leads por Día',
+                        data: ultimos30DiasData,
+                        borderColor: '#43e97b',
+                        backgroundColor: 'rgba(67, 233, 123, 0.1)',
+                        tension: 0.4,
+                        fill: true,
+                        pointRadius: 4,
+                        pointBackgroundColor: '#43e97b',
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 2,
+                        pointHoverRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    animation: {
+                        duration: 0
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            enabled: true
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                stepSize: 1,
+                                callback: function(value) {
+                                    return value;
+                                }
+                            }
+                        }
+                    }
+                },
+                plugins: [datalabelsPlugin]
+            });
+        }
+
+        // Update stat cards
+            try {
+        updateStatCards();
+            } catch (statError) {
+                console.error('Error en updateStatCards:', statError);
+            }
+        
+        // Update rankings
+            try {
+        updateRankings();
+            } catch (rankError) {
+                console.error('Error en updateRankings:', rankError);
+            }
+        } catch (error) {
+            console.error('Error crítico en updateCharts:', error);
+        }
+    }
+
+    function updateStatCards() {
+        try {
+            // Helper function para actualizar elementos de forma segura
+            const updateElement = (id, value) => {
+                const el = document.getElementById(id);
+                if (el) {
+                    try {
+                        el.textContent = value;
+                    } catch (e) {
+                        console.error(`Error al actualizar ${id}:`, e);
+                    }
+                }
+            };
+
+        // Total Facturación
+        const totalFacturado = filteredData.reduce((sum, d) => sum + (d.Factura || 0), 0);
+        const leadsFacturados = filteredData.filter(d => d.Factura).length;
+            updateElement('statTotalFacturacion', `$${totalFacturado.toLocaleString()}`);
+            updateElement('statTotalFacturacionSub', `${leadsFacturados} leads facturados`);
+
+        // Promedio por Lead
+        const promedio = leadsFacturados > 0 ? Math.round(totalFacturado / leadsFacturados) : 0;
+            updateElement('statPromedioLead', `$${promedio.toLocaleString()}`);
+            updateElement('statPromedioLeadSub', 'ticket promedio');
+
+        // Mejor Mes
+        const monthlyLeads = filteredData.reduce((acc, d) => {
+            if (d.Creación) {
+                    try {
+                const month = d.Creación.substring(0, 7);
+                acc[month] = (acc[month] || 0) + 1;
+                    } catch (e) {
+                        console.error('Error procesando fecha de creación:', e);
+                    }
+            }
+            return acc;
+        }, {});
+        
+        const mejorMes = Object.entries(monthlyLeads).sort((a, b) => b[1] - a[1])[0];
+        if (mejorMes) {
+                try {
+            const [mes, cantidad] = mejorMes;
+            const monthNames = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+            const [year, month] = mes.split('-');
+                    const monthIndex = parseInt(month) - 1;
+                    if (monthIndex >= 0 && monthIndex < 12) {
+                        updateElement('statMejorMes', `${monthNames[monthIndex]} ${year}`);
+                        updateElement('statMejorMesSub', `${cantidad} leads`);
+                    }
+                } catch (e) {
+                    console.error('Error procesando mejor mes:', e);
+                }
+        }
+
+        // Fuente Top
+        const sourceCount = filteredData.reduce((acc, d) => {
+            if (d.Source) {
+                acc[d.Source] = (acc[d.Source] || 0) + 1;
+            }
+            return acc;
+        }, {});
+        
+        const topSource = Object.entries(sourceCount).sort((a, b) => b[1] - a[1])[0];
+        if (topSource) {
+            const [source, count] = topSource;
+                updateElement('statFuenteTop', source);
+                updateElement('statFuenteTopSub', `${count} leads`);
+            }
+        } catch (error) {
+            console.error('Error en updateStatCards:', error);
+        }
+    }
+
+    function updateFunnel() {
+        const totalLeads = filteredData.length;
+        const contactados = filteredData.filter(d => d.Contactado).length;
+        const calificados = filteredData.filter(d => d.Calificado).length;
+        const visitas = filteredData.filter(d => d.Visita).length;
+        const conversiones = filteredData.filter(d => d.Conversión).length;
+
+        const funnelData = [
+            { name: 'Contactados', value: contactados, icon: '📞', previous: totalLeads },
+            { name: 'Calificados', value: calificados, icon: '✅', previous: contactados },
+            { name: 'Visitas', value: visitas, icon: '🏢', previous: calificados },
+            { name: 'Conversiones', value: conversiones, icon: '🎯', previous: visitas }
+        ];
+
+        const funnelList = document.getElementById('funnelList');
+        if (!funnelList) return;
+
+        funnelList.innerHTML = funnelData.map((item, index) => {
+            const position = index + 1;
+            const rankClass = position <= 3 ? `rank-${position}` : 'rank-other';
+            const percentage = totalLeads > 0 ? ((item.value / totalLeads) * 100).toFixed(1) : 0;
+            const conversionRate = item.previous > 0 ? ((item.value / item.previous) * 100).toFixed(1) : 0;
+            const conversionText = index === 0 ? `${percentage}% del total` : `${conversionRate}% de conversión`;
+            
+            return `
+                <div class="ranking-item ${rankClass}">
+                    <div class="ranking-left">
+                        <div class="ranking-position">${item.icon}</div>
+                        <div class="ranking-info">
+                            <div class="ranking-name">${escapeHtml(item.name)}</div>
+                            <div class="ranking-detail">${conversionText}</div>
+                        </div>
+                    </div>
+                    <div class="ranking-value">
+                        <div class="ranking-main-value">${item.value}</div>
+                        <div class="ranking-sub-value">leads</div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    function updateRankings() {
+        const sourceCount = filteredData.reduce((acc, d) => {
+            if (d.Source) {
+                acc[d.Source] = (acc[d.Source] || 0) + 1;
+            }
+            return acc;
+        }, {});
+
+        const rankings = Object.entries(sourceCount)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 6);
+
+        const rankingList = document.getElementById('rankingList');
+        if (!rankingList) return;
+        
+        rankingList.innerHTML = rankings.map(([source, count], index) => {
+            const position = index + 1;
+            const rankClass = position <= 3 ? `rank-${position}` : 'rank-other';
+            const icon = position === 1 ? '🥇' : position === 2 ? '🥈' : position === 3 ? '🥉' : '';
+            
+            return `
+                <div class="ranking-item ${rankClass}">
+                    <div class="ranking-left">
+                        <div class="ranking-position">${icon || position + '.'}</div>
+                        <div class="ranking-info">
+                            <div class="ranking-name">${escapeHtml(source)}</div>
+                            <div class="ranking-detail">${count} leads registrados</div>
+                        </div>
+                    </div>
+                    <div class="ranking-value">
+                        <div class="ranking-main-value">${count}</div>
+                        <div class="ranking-sub-value">leads</div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    function toggleLeadRow(index) {
+        const expandRow = document.getElementById(`expand-row-${index}`);
+        if (!expandRow) return;
+        
+        // Cerrar todas las demás filas expandidas
+        document.querySelectorAll('.expand-row').forEach(row => {
+            if (row.id !== `expand-row-${index}`) {
+                row.style.display = 'none';
+                const rowIndex = row.id.replace('expand-row-', '');
+                const mainRow = document.querySelector(`.lead-row[data-index="${rowIndex}"]`);
+                if (mainRow) mainRow.classList.remove('expanded');
+            }
+        });
+        
+        // Toggle de la fila actual
+        if (expandRow.style.display === 'none') {
+            expandRow.style.display = '';
+            const mainRow = document.querySelector(`.lead-row[data-index="${index}"]`);
+            if (mainRow) mainRow.classList.add('expanded');
+        } else {
+            expandRow.style.display = 'none';
+            const mainRow = document.querySelector(`.lead-row[data-index="${index}"]`);
+            if (mainRow) mainRow.classList.remove('expanded');
+        }
+    }
+
+    function updateTable() {
+        try {
+        const tbody = document.querySelector('#leadsTable tbody');
+            if (!tbody) {
+                console.warn('Tabla no encontrada, saltando updateTable');
+                return;
+            }
+            
+            // Si no hay búsqueda activa, sincronizar tableData con filteredData
+            const searchInput = document.getElementById('searchInput');
+            if (!searchInput || !searchInput.value.trim()) {
+                tableData = [...filteredData];
+            }
+            
+            // Ordenar por fecha de creación (más recientes primero)
+            try {
+                tableData.sort((a, b) => {
+                    try {
+                        const fechaA = a && a.Creación ? parseDateGMT5(a.Creación) : null;
+                        const fechaB = b && b.Creación ? parseDateGMT5(b.Creación) : null;
+                        if (!fechaA && !fechaB) return 0;
+                        if (!fechaA) return 1;
+                        if (!fechaB) return -1;
+                        return fechaB.getTime() - fechaA.getTime(); // Orden descendente (más recientes primero)
+                    } catch (e) {
+                        console.error('Error al ordenar datos:', e);
+                        return 0;
+                    }
+                });
+            } catch (sortError) {
+                console.error('Error en sort:', sortError);
+            }
+        
+            // Cerrar todas las filas expandidas antes de actualizar
+            try {
+                document.querySelectorAll('.expand-row').forEach(row => {
+                    if (row) row.style.display = 'none';
+                });
+                document.querySelectorAll('.lead-row').forEach(row => {
+                    if (row) row.classList.remove('expanded');
+                });
+            } catch (e) {
+                console.error('Error cerrando filas expandidas:', e);
+            }
+        
+        tbody.innerHTML = '';
+            var fragment = document.createDocumentFragment();
+
+            tableData.forEach((lead, index) => {
+                try {
+                    if (!lead) return; // Saltar leads nulos o undefined
+            const status = getStatus(lead);
+            const statusClass = `status-${status}`;
+            const statusText = status === 'convertido' ? 'Convertido' :
+                             status === 'rechazado' ? 'Rechazado' : 'En Proceso';
+            const factura = lead.Factura ? `$${lead.Factura.toLocaleString()}` : '-';
+            const diasProceso = getDaysInProcess(lead);
+            const numSeguimientos = lead.Seguimientos ? lead.Seguimientos.length : 0;
+
+            // Fila principal
+            const row = document.createElement('tr');
+            row.className = 'lead-row';
+            row.id = `lead-row-${index}`;
+            row.setAttribute('data-index', index);
+            const activeCampaign = lead.ActiveCampaign != null && lead.ActiveCampaign !== '' ? String(lead.ActiveCampaign) : '—';
+            row.innerHTML = `
+                <td style="cursor: pointer;">${escapeHtml(lead.Contact || '')}</td>
+                <td style="cursor: pointer;">${escapeHtml(lead.Company || '')}</td>
+                <td style="cursor: pointer;">${escapeHtml(lead.Correo || '')}</td>
+                <td style="cursor: pointer;">${escapeHtml(lead.Telefono || '')}</td>
+                <td style="cursor: pointer;">${escapeHtml(lead.Source || '')}</td>
+                <td style="cursor: pointer;">${escapeHtml(lead.Creación || '')}</td>
+                <td style="cursor: pointer;"><span class="status-badge ${statusClass}">${escapeHtml(statusText)}</span></td>
+                <td style="cursor: pointer;">${escapeHtml(activeCampaign)}</td>
+                <td style="cursor: pointer;">${escapeHtml(factura)}</td>
+                <td style="cursor: pointer;">${diasProceso} días</td>
+                <td class="table-actions">
+                    <button class="action-btn edit" onclick="event.stopPropagation(); openEditLeadModal(${index})" title="Editar" aria-label="Editar lead">✏️</button>
+                    <button class="action-btn delete" onclick="event.stopPropagation(); deleteLead(${index})" title="Eliminar" aria-label="Eliminar lead">🗑️</button>
+                </td>
+            `;
+            
+            // Agregar evento click para expandir/colapsar
+            row.addEventListener('click', function(e) {
+                // No expandir si se hace click en los botones
+                if (e.target.closest('.table-actions')) return;
+                toggleLeadRow(index);
+            });
+            
+            fragment.appendChild(row);
+
+                    // Fila expandible para seguimientos
+                    const expandRow = document.createElement('tr');
+                    expandRow.className = 'expand-row';
+                    expandRow.id = `expand-row-${index}`;
+                    expandRow.style.display = 'none';
+                    const seguimientos = lead.Seguimientos || [];
+                    let seguimientosOrdenados = [];
+                    try {
+                        seguimientosOrdenados = seguimientos.slice().sort((a, b) => {
+                            try {
+                                const fechaA = a && a.fecha ? parseDateGMT5(a.fecha) : null;
+                                const fechaB = b && b.fecha ? parseDateGMT5(b.fecha) : null;
+                                if (!fechaA && !fechaB) return 0;
+                                if (!fechaA) return 1;
+                                if (!fechaB) return -1;
+                                return fechaB.getTime() - fechaA.getTime();
+                            } catch (e) {
+                                console.error('Error ordenando seguimientos:', e);
+                                return 0;
+                            }
+                        });
+                    } catch (sortError) {
+                        console.error('Error en sort de seguimientos:', sortError);
+                        seguimientosOrdenados = seguimientos;
+                    }
+            
+            let seguimientosHTML = '';
+            if (seguimientosOrdenados.length === 0) {
+                seguimientosHTML = '<div style="padding: 20px; text-align: center; color: #999;">No hay notas de seguimiento registradas</div>';
+            } else {
+                seguimientosHTML = seguimientosOrdenados.map((seg, sortedIdx) => {
+                    // Encontrar el índice original en el array sin ordenar
+                    const originalIndex = seguimientos.findIndex(s => s === seg);
+                    return `
+                    <div class="seguimiento-item-expanded">
+                        <div class="seguimiento-date-expanded">${escapeHtml(seg.fecha || '')}</div>
+                        <div class="seguimiento-text-expanded">${escapeHtml(seg.texto || '')}</div>
+                        <button class="seguimiento-delete-expanded" onclick="event.stopPropagation(); deleteSeguimientoFromExpanded(${index}, ${originalIndex})" title="Eliminar nota" aria-label="Eliminar seguimiento">🗑️</button>
+                    </div>
+                `;
+                }).join('');
+            }
+            
+            const comentariosLead = lead.SeguimientoInicial != null && String(lead.SeguimientoInicial).trim() !== '' ? escapeHtml(String(lead.SeguimientoInicial)) : '<span style="color:#999;">Sin comentarios</span>';
+            expandRow.innerHTML = `
+                <td colspan="11" class="expand-cell">
+                    <div class="expand-content">
+                        <div class="expand-header">
+                            <strong>📝 Notas de Seguimiento</strong>
+                            <button class="action-btn track" onclick="event.stopPropagation(); openTrackingModal(${index})" title="Agregar/Ver Seguimiento" aria-label="Agregar seguimiento" style="padding: 8px 15px; font-size: 0.9em;">
+                                📋 Agregar Nota
+                            </button>
+                        </div>
+                        <div class="comentarios-seguimiento-zone" style="margin-bottom: 20px; padding: 12px; background: #f8f9fa; border-radius: 6px; border-left: 3px solid #0066cc;">
+                            <strong style="color: #0066cc; font-size: 0.95em;">Comentarios</strong>
+                            <div style="margin-top: 6px; color: #2c3e50; line-height: 1.5; font-size: 0.9em; white-space: pre-wrap;">${comentariosLead}</div>
+                        </div>
+                        <div class="seguimientos-container">
+                            ${seguimientosHTML}
+                        </div>
+                    </div>
+                </td>
+            `;
+                    fragment.appendChild(expandRow);
+                } catch (leadError) {
+                    console.error(`Error procesando lead en índice ${index}:`, leadError);
+                }
+            });
+            tbody.appendChild(fragment);
+        } catch (error) {
+            console.error('Error crítico en updateTable:', error);
+            if (tbody) {
+                tbody.innerHTML = '<tr><td colspan="11" style="text-align: center; padding: 20px; color: #999;">Error al cargar la tabla. Por favor, recargue la página.</td></tr>';
+            }
+        }
+    }
+
+    function updateDashboard() {
+        updateKPIs();
+        updateCharts();
+        requestAnimationFrame(function() {
+            updateTable();
+            updateUltimosSeguimientos();
+            setTimeout(equalizeColumnHeights, 50);
+        });
+    }
+
+    // Función para igualar las alturas de las columnas
+    function equalizeColumnHeights() {
+        try {
+            const seguimientosCol = document.querySelector('.ultimos-seguimientos-column');
+            const indicadoresCol = document.querySelector('.indicadores-column');
+            
+            if (seguimientosCol && indicadoresCol) {
+                // Obtener la altura de la columna de indicadores
+                const indicadoresHeight = indicadoresCol.offsetHeight;
+                if (indicadoresHeight > 0) {
+                    // Aplicar la misma altura a la columna de seguimientos
+                    seguimientosCol.style.height = indicadoresHeight + 'px';
+                }
+            }
+        } catch (error) {
+            console.error('Error en equalizeColumnHeights:', error);
+        }
+    }
+
+    // ============================================
+    // ÚLTIMOS SEGUIMIENTOS
+    // ============================================
+    
+    function updateUltimosSeguimientos() {
+        try {
+            const seguimientosList = document.getElementById('ultimosSeguimientosList');
+            if (!seguimientosList) return;
+
+            // Recopilar todos los seguimientos de todos los leads
+            const todosSeguimientos = [];
+            
+            filteredData.forEach(lead => {
+                if (lead.Seguimientos && Array.isArray(lead.Seguimientos) && lead.Seguimientos.length > 0) {
+                    lead.Seguimientos.forEach(seg => {
+                        todosSeguimientos.push({
+                            fecha: seg.fecha || '',
+                            texto: seg.texto || '',
+                            contacto: lead.Contact || 'Sin contacto',
+                            compañia: lead.Company || 'Sin compañía',
+                            rowIndex: lead.rowIndex
+                        });
+                    });
+                }
+            });
+
+            // Ordenar por fecha (más recientes primero)
+            todosSeguimientos.sort((a, b) => {
+                const fechaA = parseDateGMT5(a.fecha);
+                const fechaB = parseDateGMT5(b.fecha);
+                if (!fechaA && !fechaB) return 0;
+                if (!fechaA) return 1;
+                if (!fechaB) return -1;
+                return fechaB.getTime() - fechaA.getTime();
+            });
+
+            // Mostrar solo los últimos 10
+            const ultimos10 = todosSeguimientos.slice(0, 10);
+
+            if (ultimos10.length === 0) {
+                seguimientosList.innerHTML = '<div class="ultimos-seguimientos-empty">No hay seguimientos registrados</div>';
+                return;
+            }
+
+            // Generar HTML
+            seguimientosList.innerHTML = ultimos10.map((seg, idx) => {
+                // Encontrar el lead completo usando rowIndex
+                const lead = filteredData.find(l => l.rowIndex === seg.rowIndex);
+                return `
+                <div class="ultimos-seguimientos-item" onclick="openSeguimientoInfoModal(${seg.rowIndex})" style="cursor: pointer;">
+                    <div class="ultimos-seguimientos-item-header">
+                        <div class="ultimos-seguimientos-contact">${escapeHtml(seg.contacto)}</div>
+                        <div class="ultimos-seguimientos-date">${escapeHtml(seg.fecha || 'Sin fecha')}</div>
+                    </div>
+                    <div class="ultimos-seguimientos-text">${escapeHtml(seg.texto)}</div>
+                    <div style="font-size: 0.8em; color: #999; margin-top: 5px;">${escapeHtml(seg.compañia)}</div>
+                </div>
+            `;
+            }).join('');
+        } catch (error) {
+            console.error('Error al actualizar últimos seguimientos:', error);
+            const seguimientosList = document.getElementById('ultimosSeguimientosList');
+            if (seguimientosList) {
+                seguimientosList.innerHTML = '<div class="ultimos-seguimientos-empty">Error al cargar seguimientos</div>';
+            }
+        }
+    }
+
+    // ============================================
+    // FUNCIONES DE MODAL - LEAD
+    // ============================================
+
+    function openAddLeadModal() {
+        try {
+        editingLeadIndex = -1;
+            
+            const modalTitle = document.getElementById('modalTitle');
+            const submitBtn = document.getElementById('submitBtn');
+            const leadForm = document.getElementById('leadForm');
+            const inputCreacion = document.getElementById('inputCreacion');
+            const leadModal = document.getElementById('leadModal');
+            
+            if (!modalTitle || !submitBtn || !leadForm || !inputCreacion || !leadModal) {
+                console.error('Error: Elementos del modal no encontrados');
+                alert('⚠️ Error al abrir el formulario. Por favor, recargue la página.');
+                return;
+            }
+            
+            modalTitle.textContent = '➕ Agregar Nuevo Lead';
+            submitBtn.textContent = 'Guardar Lead';
+            leadForm.reset();
+            
+            const today = getTodayGMT5();
+            inputCreacion.value = today;
+            
+            leadModal.classList.add('active');
+            console.log('Modal de nuevo lead abierto correctamente');
+        } catch (error) {
+            console.error('Error al abrir modal de nuevo lead:', error);
+            alert('⚠️ Error al abrir el formulario: ' + (error.message || error.toString()));
+        }
+    }
+
+    function openEditLeadModal(index) {
+        // El índice viene de tableData, necesitamos encontrar el lead en filteredData
+        const leadFromTable = tableData[index];
+        if (!leadFromTable) return;
+        
+        // Buscar el índice en filteredData usando rowIndex
+        const realIndex = filteredData.findIndex(l => l.rowIndex === leadFromTable.rowIndex);
+        if (realIndex === -1) return;
+        
+        editingLeadIndex = realIndex;
+        const lead = filteredData[realIndex];
+        
+        document.getElementById('modalTitle').textContent = '✏️ Editar Lead';
+        document.getElementById('submitBtn').textContent = 'Actualizar Lead';
+        
+        document.getElementById('inputContact').value = lead.Contact || '';
+        document.getElementById('inputCompany').value = lead.Company || '';
+        document.getElementById('inputCorreo').value = lead.Correo || '';
+        document.getElementById('inputTelefono').value = lead.Telefono || '';
+        document.getElementById('inputSource').value = lead.Source || '';
+        document.getElementById('inputCreacion').value = lead.Creación || '';
+        document.getElementById('inputRequerimiento').value = lead.Requerimiento || '';
+        document.getElementById('inputActiveCampaign').value = (lead.ActiveCampaign != null && lead.ActiveCampaign !== '') ? String(lead.ActiveCampaign) : '';
+        document.getElementById('inputContactado').value = lead.Contactado || '';
+        document.getElementById('inputCalificado').value = lead.Calificado || '';
+        document.getElementById('inputNoCalificado').value = lead.NoCalificado || '';
+        document.getElementById('inputVisita').value = lead.Visita || '';
+        document.getElementById('inputPropuesta').value = lead.Propuesta || '';
+        document.getElementById('inputConversion').value = lead.Conversión || '';
+        document.getElementById('inputRechazo').value = lead.Rechazo || '';
+        document.getElementById('inputFactura').value = lead.Factura || '';
+        document.getElementById('inputSeguimiento').value = lead.SeguimientoInicial || '';
+        
+        document.getElementById('leadModal').classList.add('active');
+    }
+
+    function closeLeadModal() {
+        try {
+            const modal = document.getElementById('leadModal');
+            const form = document.getElementById('leadForm');
+            if (modal) {
+                modal.classList.remove('active');
+            }
+            if (form) {
+                form.reset();
+            }
+        editingLeadIndex = -1;
+            console.log('Modal cerrado correctamente');
+        } catch (error) {
+            console.error('Error cerrando modal:', error);
+            // Intentar forzar el cierre del modal
+            try {
+                const modal = document.getElementById('leadModal');
+                if (modal) {
+                    modal.style.display = 'none';
+                    modal.classList.remove('active');
+                }
+            } catch (e) {
+                console.error('Error crítico cerrando modal:', e);
+            }
+        }
+    }
+
+    // ============================================
+    // FUNCIONES DE MODAL - SEGUIMIENTO
+    // ============================================
+
+    function openTrackingModal(index) {
+        // El índice viene de tableData, necesitamos encontrar el lead en filteredData
+        const leadFromTable = tableData[index];
+        if (!leadFromTable || index < 0 || index >= tableData.length) return;
+        
+        // Buscar el índice en filteredData usando rowIndex
+        const realIndex = filteredData.findIndex(l => l.rowIndex === leadFromTable.rowIndex);
+        if (realIndex === -1) return;
+        
+        trackingLeadIndex = realIndex;
+        const lead = filteredData[realIndex];
+        
+        const nameEl = document.getElementById('trackingLeadName');
+        const companyEl = document.getElementById('trackingLeadCompany');
+        
+        if (nameEl) nameEl.textContent = lead.Contact || 'Sin nombre';
+        if (companyEl) companyEl.textContent = lead.Company || 'Sin compañía';
+        
+        const today = getTodayGMT5();
+        document.getElementById('seguimientoDate').value = today;
+        document.getElementById('seguimientoText').value = '';
+        
+        displaySeguimientos();
+        document.getElementById('trackingModal').classList.add('active');
+    }
+
+    function closeTrackingModal() {
+        document.getElementById('trackingModal').classList.remove('active');
+        trackingLeadIndex = -1;
+    }
+
+    function displaySeguimientos() {
+        if (trackingLeadIndex < 0 || trackingLeadIndex >= filteredData.length) return;
+        
+        const lead = filteredData[trackingLeadIndex];
+        const seguimientoList = document.getElementById('seguimientoList');
+        
+        if (!seguimientoList) return;
+        
+        if (!lead.Seguimientos || lead.Seguimientos.length === 0) {
+            seguimientoList.innerHTML = '<p style="text-align: center; color: #7f8c8d; padding: 20px;">No hay seguimientos registrados</p>';
+            return;
+        }
+        
+        seguimientoList.innerHTML = lead.Seguimientos
+            .sort((a, b) => {
+                const fechaA = parseDateGMT5(a.fecha);
+                const fechaB = parseDateGMT5(b.fecha);
+                if (!fechaA && !fechaB) return 0;
+                if (!fechaA) return 1;
+                if (!fechaB) return -1;
+                return fechaB.getTime() - fechaA.getTime();
+            })
+            .map((seg, idx) => `
+                <div class="seguimiento-item">
+                    <div class="seguimiento-content">
+                        <div class="seguimiento-date">${escapeHtml(seg.fecha)}</div>
+                        <div class="seguimiento-text">${escapeHtml(seg.texto)}</div>
+                    </div>
+                    <button class="seguimiento-delete" onclick="deleteSeguimiento(${idx})" title="Eliminar" aria-label="Eliminar seguimiento">🗑️</button>
+                </div>
+            `).join('');
+    }
+
+    function addSeguimiento() {
+        const fecha = document.getElementById('seguimientoDate').value;
+        const texto = document.getElementById('seguimientoText').value.trim();
+        
+        if (!fecha || !texto) {
+            alert('Por favor complete la fecha y descripción del seguimiento');
+            return;
+        }
+        
+        // Validar que la fecha de seguimiento no sea futura
+        const fechaSeguimiento = parseDateGMT5(fecha);
+        const hoy = getCurrentDateGMT5();
+        hoy.setHours(23, 59, 59, 999); // Permitir hasta el final del día de hoy
+        
+        if (fechaSeguimiento > hoy) {
+            alert('⚠️ La fecha de seguimiento no puede ser futura.');
+            return;
+        }
+        
+        const lead = filteredData[trackingLeadIndex];
+        const seguimiento = { fecha, texto };
+        
+        showLoading();
+        google.script.run
+            .withSuccessHandler(function(result) {
+                hideLoading();
+                if (result.success) {
+                    // Actualizar localmente
+                    if (!lead.Seguimientos) {
+                        lead.Seguimientos = [];
+                    }
+                    lead.Seguimientos.push(seguimiento);
+                    
+                    // Actualizar en rawData
+                    const rawIndex = rawData.findIndex(l => l.rowIndex === lead.rowIndex);
+                    if (rawIndex !== -1) {
+                        rawData[rawIndex] = lead;
+                    }
+                    
+                    displaySeguimientos();
+                    
+                    const today = new Date().toISOString().split('T')[0];
+                    document.getElementById('seguimientoDate').value = today;
+                    document.getElementById('seguimientoText').value = '';
+                    
+                    alert('✅ Seguimiento agregado exitosamente');
+                } else {
+                    alert('Error al agregar seguimiento');
+                }
+            })
+            .withFailureHandler(function(error) {
+                hideLoading();
+                alert('Error: ' + error.message);
+            })
+            .addSeguimiento(lead.rowIndex, seguimiento);
+    }
+
+    function deleteSeguimiento(index) {
+        if (!confirm('¿Está seguro de eliminar este seguimiento?')) return;
+        
+        const lead = filteredData[trackingLeadIndex];
+        
+        showLoading();
+        google.script.run
+            .withSuccessHandler(function(result) {
+                hideLoading();
+                if (result.success) {
+                    lead.Seguimientos.splice(index, 1);
+                    
+                    // Actualizar en rawData
+                    const rawIndex = rawData.findIndex(l => l.rowIndex === lead.rowIndex);
+                    if (rawIndex !== -1) {
+                        rawData[rawIndex] = lead;
+                    }
+                    
+                    displaySeguimientos();
+                } else {
+                    alert('Error al eliminar seguimiento');
+                }
+            })
+            .withFailureHandler(function(error) {
+                hideLoading();
+                alert('Error: ' + error.message);
+            })
+            .deleteSeguimiento(lead.rowIndex, index);
+    }
+
+    function deleteSeguimientoFromExpanded(leadIndex, seguimientoIndex) {
+        if (!confirm('¿Está seguro de eliminar este seguimiento?')) return;
+        
+        const lead = tableData[leadIndex];
+        if (!lead || !lead.Seguimientos || seguimientoIndex < 0 || seguimientoIndex >= lead.Seguimientos.length) {
+            alert('Error: No se pudo encontrar el seguimiento a eliminar');
+            return;
+        }
+        
+        showLoading();
+        google.script.run
+            .withSuccessHandler(function(result) {
+                hideLoading();
+                if (result.success) {
+                    // Eliminar del array local
+                    lead.Seguimientos.splice(seguimientoIndex, 1);
+                    
+                    // Actualizar en rawData
+                    const rawIndex = rawData.findIndex(l => l.rowIndex === lead.rowIndex);
+                    if (rawIndex !== -1) {
+                        rawData[rawIndex].Seguimientos = lead.Seguimientos;
+                    }
+                    
+                    // Actualizar en filteredData
+                    const filteredIndex = filteredData.findIndex(l => l.rowIndex === lead.rowIndex);
+                    if (filteredIndex !== -1) {
+                        filteredData[filteredIndex].Seguimientos = lead.Seguimientos;
+                    }
+                    
+                    // Actualizar la tabla para reflejar los cambios
+                    updateTable();
+                    
+                    // Si la fila estaba expandida, mantenerla expandida
+                    const expandRow = document.getElementById(`expand-row-${leadIndex}`);
+                    const leadRow = document.querySelector(`#lead-row-${leadIndex}`);
+                    if (expandRow && leadRow && leadRow.classList.contains('expanded')) {
+                        expandRow.style.display = '';
+                    }
+                } else {
+                    alert('Error al eliminar seguimiento');
+                }
+            })
+            .withFailureHandler(function(error) {
+                hideLoading();
+                alert('Error: ' + error.message);
+            })
+            .deleteSeguimiento(lead.rowIndex, seguimientoIndex);
+    }
+
+    // ============================================
+    // FUNCIONES DE MODAL - INFORMACIÓN DE SEGUIMIENTO
+    // ============================================
+
+    function openSeguimientoInfoModal(rowIndex) {
+        try {
+            // Buscar el lead completo usando rowIndex
+            const lead = filteredData.find(l => l.rowIndex === rowIndex);
+            if (!lead) {
+                alert('No se encontró la información del contacto');
+                return;
+            }
+
+            const modal = document.getElementById('seguimientoInfoModal');
+            const modalTitle = document.getElementById('seguimientoInfoModalTitle');
+            const modalContent = document.getElementById('seguimientoInfoContent');
+
+            if (!modal || !modalTitle || !modalContent) {
+                console.error('Elementos del modal no encontrados');
+                return;
+            }
+
+            // Configurar título
+            modalTitle.textContent = `📋 ${escapeHtml(lead.Contact || 'Sin contacto')}`;
+
+            // Obtener todos los seguimientos del lead y ordenarlos (más recientes primero)
+            const seguimientos = lead.Seguimientos || [];
+            let seguimientosOrdenados = [];
+            
+            try {
+                seguimientosOrdenados = seguimientos.sort((a, b) => {
+                    try {
+                        const fechaA = a && a.fecha ? parseDateGMT5(a.fecha) : null;
+                        const fechaB = b && b.fecha ? parseDateGMT5(b.fecha) : null;
+                        if (!fechaA && !fechaB) return 0;
+                        if (!fechaA) return 1;
+                        if (!fechaB) return -1;
+                        return fechaB.getTime() - fechaA.getTime(); // Más recientes primero
+                    } catch (e) {
+                        console.error('Error ordenando seguimientos:', e);
+                        return 0;
+                    }
+                });
+            } catch (sortError) {
+                console.error('Error en sort de seguimientos:', sortError);
+                seguimientosOrdenados = seguimientos;
+            }
+
+            // Generar HTML con información del contacto
+            let seguimientosHTML = '';
+            if (seguimientosOrdenados.length === 0) {
+                seguimientosHTML = '<div style="padding: 20px; text-align: center; color: #999; font-size: 0.85em;">No hay notas de seguimiento registradas</div>';
+            } else {
+                seguimientosHTML = seguimientosOrdenados.map(seg => `
+                    <div class="seguimiento-item-expanded" style="margin-bottom: 15px;">
+                        <div class="seguimiento-date-expanded" style="font-size: 0.75em;">${escapeHtml(seg.fecha || 'Sin fecha')}</div>
+                        <div class="seguimiento-text-expanded" style="font-size: 0.85em;">${escapeHtml(seg.texto || '')}</div>
+                    </div>
+                `).join('');
+            }
+
+            // Construir el contenido del modal
+            modalContent.innerHTML = `
+                <div style="margin-bottom: 25px; padding: 20px; background: #f8f9fa; border-radius: 8px; border-left: 4px solid #0066cc;">
+                    <h3 style="color: #2c3e50; margin: 0 0 15px 0; font-size: 1.1em;">Información del Contacto</h3>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px;">
+                        <div>
+                            <strong style="color: #7f8c8d; font-size: 0.8em;">Contacto:</strong>
+                            <p style="margin: 5px 0 0 0; color: #2c3e50; font-size: 0.9em;">${escapeHtml(lead.Contact || 'Sin contacto')}</p>
+                        </div>
+                        <div>
+                            <strong style="color: #7f8c8d; font-size: 0.8em;">Compañía:</strong>
+                            <p style="margin: 5px 0 0 0; color: #2c3e50; font-size: 0.9em;">${escapeHtml(lead.Company || 'Sin compañía')}</p>
+                        </div>
+                        <div>
+                            <strong style="color: #7f8c8d; font-size: 0.8em;">Fuente:</strong>
+                            <p style="margin: 5px 0 0 0; color: #2c3e50; font-size: 0.9em;">${escapeHtml(lead.Source || 'Sin fuente')}</p>
+                        </div>
+                        <div>
+                            <strong style="color: #7f8c8d; font-size: 0.8em;">Fecha de Creación:</strong>
+                            <p style="margin: 5px 0 0 0; color: #2c3e50; font-size: 0.9em;">${escapeHtml(lead.Creación || 'Sin fecha')}</p>
+                        </div>
+                        ${lead.Requerimiento ? `
+                        <div style="grid-column: 1 / -1;">
+                            <strong style="color: #7f8c8d; font-size: 0.8em;">Requerimiento:</strong>
+                            <p style="margin: 5px 0 0 0; color: #2c3e50; line-height: 1.5; font-size: 0.9em;">${escapeHtml(lead.Requerimiento)}</p>
+                        </div>
+                        ` : ''}
+                    </div>
+                </div>
+                <div>
+                    <h3 style="color: #2c3e50; margin: 0 0 20px 0; font-size: 1.0em; padding-bottom: 10px; border-bottom: 2px solid #f0f0f0;">📝 Notas de Seguimiento (${seguimientosOrdenados.length})</h3>
+                    <div class="seguimientos-container">
+                        ${seguimientosHTML}
+                    </div>
+                </div>
+            `;
+
+            // Mostrar el modal
+            modal.classList.add('active');
+        } catch (error) {
+            console.error('Error al abrir modal de información de seguimiento:', error);
+            alert('Error al cargar la información del contacto');
+        }
+    }
+
+    function closeSeguimientoInfoModal() {
+        try {
+            const modal = document.getElementById('seguimientoInfoModal');
+            if (modal) {
+                modal.classList.remove('active');
+            }
+        } catch (error) {
+            console.error('Error cerrando modal de información:', error);
+        }
+    }
+
+    // ============================================
+    // FUNCIONES DE MODAL - FACTURACIÓN
+    // ============================================
+
+    function openFacturacionModal() {
+        try {
+            const modal = document.getElementById('facturacionModal');
+            const modalContent = document.getElementById('facturacionModalContent');
+
+            if (!modal || !modalContent) {
+                console.error('Elementos del modal no encontrados');
+                return;
+            }
+
+            // Filtrar leads convertidos (que tengan fecha de Conversión)
+            const leadsConvertidos = filteredData.filter(lead => lead.Conversión);
+
+            // Ordenar por fecha de conversión (más reciente primero)
+            let leadsOrdenados = [];
+            try {
+                leadsOrdenados = leadsConvertidos.sort((a, b) => {
+                    try {
+                        const fechaA = a && a.Conversión ? parseDateGMT5(a.Conversión) : null;
+                        const fechaB = b && b.Conversión ? parseDateGMT5(b.Conversión) : null;
+                        if (!fechaA && !fechaB) return 0;
+                        if (!fechaA) return 1;
+                        if (!fechaB) return -1;
+                        return fechaB.getTime() - fechaA.getTime(); // Más recientes primero
+                    } catch (e) {
+                        console.error('Error ordenando leads:', e);
+                        return 0;
+                    }
+                });
+            } catch (sortError) {
+                console.error('Error en sort de leads:', sortError);
+                leadsOrdenados = leadsConvertidos;
+            }
+
+            // Generar HTML de la tabla
+            let tablaHTML = '';
+            if (leadsOrdenados.length === 0) {
+                tablaHTML = '<div style="padding: 40px; text-align: center; color: #999; font-size: 0.9em;">No hay leads convertidos registrados</div>';
+            } else {
+                tablaHTML = `
+                    <table class="facturacion-table">
+                        <thead>
+                            <tr>
+                                <th>Contacto</th>
+                                <th>Compañía</th>
+                                <th>Fecha Contactado</th>
+                                <th>Fecha de Conversión</th>
+                                <th style="text-align: right;">Monto</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${leadsOrdenados.map(lead => `
+                                <tr>
+                                    <td>${escapeHtml(lead.Contact || 'Sin contacto')}</td>
+                                    <td>${escapeHtml(lead.Company || 'Sin compañía')}</td>
+                                    <td>${escapeHtml(lead.Contactado || 'Sin fecha')}</td>
+                                    <td>${escapeHtml(lead.Conversión || 'Sin fecha')}</td>
+                                    <td style="text-align: right;" class="facturacion-monto">${lead.Factura ? `$${parseFloat(lead.Factura).toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '$0.00'}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                `;
+            }
+
+            modalContent.innerHTML = tablaHTML;
+
+            // Mostrar el modal
+            modal.classList.add('active');
+        } catch (error) {
+            console.error('Error al abrir modal de facturación:', error);
+            alert('Error al cargar la información de facturación');
+        }
+    }
+
+    function closeFacturacionModal() {
+        try {
+            const modal = document.getElementById('facturacionModal');
+            if (modal) {
+                modal.classList.remove('active');
+            }
+        } catch (error) {
+            console.error('Error cerrando modal de facturación:', error);
+        }
+    }
+
+    // ============================================
+    // FUNCIONES DE PROSPECCIÓN DE CLIENTES
+    // ============================================
+
+    function loadProspeccionData() {
+        try {
+            var container = document.getElementById('prospeccionTableContainer');
+            if (!container) {
+                console.warn('Contenedor de prospección no encontrado');
+                return;
+            }
+            container.innerHTML = '<div style="text-align: center; padding: 40px; color: #999;">Validando y cargando datos...</div>';
+            showLoading();
+            google.script.run
+                .withSuccessHandler(function(validacion) {
+                    if (validacion && !validacion.ok) {
+                        hideLoading();
+                        alert('Validación: ' + (validacion.error || 'Configuración incorrecta.'));
+                    }
+                    google.script.run
+                        .withSuccessHandler(function(data) {
+                            try {
+                                hideLoading();
+                                var rows = [];
+                                if (data && typeof data === 'object' && !Array.isArray(data) && data.data) {
+                                    rows = data.data || [];
+                                    prospeccionNotasByRow = data.notasByRow || {};
+                                } else {
+                                    rows = Array.isArray(data) ? data : [];
+                                    prospeccionNotasByRow = {};
+                                }
+                                prospeccionRawData = rows;
+                                updateProspeccionCountSummary(rows);
+                                displayProspeccionData(rows);
+                            } catch (err) {
+                                hideLoading();
+                                console.error('Error procesando datos de prospección:', err);
+                                container.innerHTML = '<div style="text-align: center; padding: 40px; color: #f44336;">Error al procesar los datos. Por favor, recargue la página.</div>';
+                            }
+                        })
+                        .withFailureHandler(function(error) {
+                            hideLoading();
+                            console.error('Error al cargar datos de prospección:', error);
+                            if (container) container.innerHTML = '<div style="text-align: center; padding: 40px; color: #f44336;">Error al cargar los datos: ' + (error.message || error.toString()) + '</div>';
+                        })
+                        .getProspeccionData();
+                })
+                .withFailureHandler(function() {
+                    hideLoading();
+                    if (container) container.innerHTML = '<div style="text-align: center; padding: 40px; color: #f44336;">Error al validar configuración.</div>';
+                })
+                .validarProspeccionNotasConfig();
+        } catch (error) {
+            hideLoading();
+            console.error('Error al llamar loadProspeccionData:', error);
+            var c = document.getElementById('prospeccionTableContainer');
+            if (c) c.innerHTML = '<div style="text-align: center; padding: 40px; color: #f44336;">Error crítico al cargar datos.</div>';
+        }
+    }
+
+    var OBS_OPTIONS = ['Pendiente', 'Validar con Jose', 'Listo para seguimiento'];
+
+    function findProspeccionColIndex(rawHeaders, displayName) {
+        var want = (displayName != null) ? String(displayName).toLowerCase().trim() : '';
+        for (var i = 0; i < rawHeaders.length; i++) {
+            var h = rawHeaders[i];
+            var s = (h != null && h !== undefined) ? String(h).toLowerCase().trim() : '';
+            if (s === want) return i;
+        }
+        return -1;
+    }
+
+    function updateProspeccionCountSummary(rows) {
+        var el = document.getElementById('prospeccionCountSummary');
+        if (!el) return;
+        if (!rows || rows.length < 1) {
+            el.textContent = '0 Clientes gestionados de un total de: 0';
+            return;
+        }
+        var headers = rows[0];
+        var totalRegistros = rows.length - 1;
+        var copiadoIdx = findProspeccionColIndex(headers, 'Copiado');
+        var copiado1Count = 0;
+        for (var i = 1; i < rows.length; i++) {
+            var v = copiadoIdx >= 0 ? rows[i][copiadoIdx] : undefined;
+            if (v === 1 || v === true || (v != null && String(v).trim() === '1')) copiado1Count++;
+        }
+        el.textContent = copiado1Count + ' Clientes gestionados de un total de: ' + totalRegistros;
+    }
+
+    /** Oportunidad con el Cliente: salto de línea antes del número, solo para números mayores a 1 (2., 3., 10., …) */
+    function formatOportunidadConCliente(text) {
+        if (!text) return '';
+        var escaped = escapeHtml(String(text));
+        return escaped.replace(/(^|\s)([2-9]\.|\d{2,}\.)/g, '$1<br>$2');
+    }
+
+    /** Comentarios: salto de línea antes del guion, solo a partir del segundo " - " encontrado */
+    function formatComentarios(text) {
+        if (!text) return '';
+        var escaped = escapeHtml(String(text));
+        var parts = escaped.split(' - ');
+        if (parts.length <= 1) return escaped;
+        return parts[0] + ' - ' + parts.slice(1).join('<br> - ');
+    }
+
+    function displayProspeccionData(data) {
+        try {
+            var container = document.getElementById('prospeccionTableContainer');
+            if (!container) return;
+            if (!data || data.length === 0) {
+                container.innerHTML = '<div style="text-align: center; padding: 40px; color: #999;">No hay datos de prospección disponibles</div>';
+                return;
+            }
+            prospeccionRawData = data;
+            var rawHeaders = data[0] || [];
+            var allRows = data.slice(1) || [];
+            var copiadoColIndex = findProspeccionColIndex(rawHeaders, 'Copiado');
+            var rowsFiltered = [];
+            allRows.forEach(function(row, i) {
+                if (copiadoColIndex < 0) { rowsFiltered.push({ row: row, sheetRowIndex: i + 2 }); return; }
+                var v = row[copiadoColIndex];
+                if (v === undefined || v === null) return;
+                if (v === 0 || String(v).trim() === '0') rowsFiltered.push({ row: row, sheetRowIndex: i + 2 });
+            });
+            var displayColumns = [];
+            var colMapNorm = {};
+            for (var i = 0; i < rawHeaders.length; i++) {
+                var h = rawHeaders[i];
+                var n = (h != null && h !== undefined) ? String(h).toLowerCase().trim() : '';
+                colMapNorm[n] = i;
+                if (n === 'copiado') continue;
+                if (n === 'oportunidades del cliente' || n === 'oportunidad con el cliente' || n === 'comentarios' || n === 'frecuencia') continue;
+                displayColumns.push({ name: (h != null && h !== undefined) ? String(h).trim() : ('Columna ' + (i + 1)), sheetIndex: i, norm: n });
+            }
+            var observacionesColIndex = findProspeccionColIndex(rawHeaders, 'Observaciones');
+            var observacionesSheetCol = observacionesColIndex >= 0 ? observacionesColIndex + 1 : -1;
+            if (typeof prospeccionSearchText !== 'undefined' && prospeccionSearchText && String(prospeccionSearchText).trim() !== '') {
+                var q = String(prospeccionSearchText).trim().toLowerCase();
+                var idxCliente = colMapNorm['cliente'];
+                var idxContacto = colMapNorm['contacto'];
+                if (idxCliente !== undefined || idxContacto !== undefined) {
+                    rowsFiltered = rowsFiltered.filter(function(item) {
+                        var row = item.row;
+                        var cliente = (idxCliente !== undefined && row[idxCliente] != null) ? String(row[idxCliente]).toLowerCase() : '';
+                        var contacto = (idxContacto !== undefined && row[idxContacto] != null) ? String(row[idxContacto]).toLowerCase() : '';
+                        return (idxCliente !== undefined && cliente.indexOf(q) !== -1) || (idxContacto !== undefined && contacto.indexOf(q) !== -1);
+                    });
+                }
+            }
+
+            var pendienteOrder = { 'Listo para seguimiento': 0, 'Validar con Jose': 1 };
+            rowsFiltered.sort(function(a, b) {
+                function sortKey(item) {
+                    var val = '';
+                    if (colMapNorm['pendiente'] !== undefined) val = (item.row[colMapNorm['pendiente']] != null) ? String(item.row[colMapNorm['pendiente']]).trim() : '';
+                    if (!val && colMapNorm['observaciones'] !== undefined) val = (item.row[colMapNorm['observaciones']] != null) ? String(item.row[colMapNorm['observaciones']]).trim() : '';
+                    return pendienteOrder[val] !== undefined ? pendienteOrder[val] : 2;
+                }
+                return sortKey(a) - sortKey(b);
+            });
+
+            var numCols = displayColumns.length + 1;
+            var tableHTML = '<table id="prospeccionTable" style="width: 100%; border-collapse: collapse; background: white;">';
+            tableHTML += '<thead><tr>';
+            displayColumns.forEach(function(c) { tableHTML += '<th>' + escapeHtml(c.name) + '</th>'; });
+            tableHTML += '<th>Acciones</th></tr></thead><tbody id="prospeccionTableBody">';
+
+            if (rowsFiltered.length === 0) {
+                var emptyMsg = (prospeccionSearchText && String(prospeccionSearchText).trim() !== '') ? 'No hay registros que coincidan con la búsqueda por Cliente o Contacto.' : 'No hay datos de prospección (solo se muestran registros con Copiado = 0).';
+                tableHTML += '<tr><td colspan="' + numCols + '" style="text-align: center; padding: 40px; color: #999;">' + emptyMsg + '</td></tr>';
+            } else {
+                rowsFiltered.forEach(function(item, displayIndex) {
+                    var row = item.row;
+                    var sheetRowIndex = item.sheetRowIndex;
+                    function getValByNorm(normName) {
+                        var idx = colMapNorm[normName];
+                        if (idx === undefined) return '';
+                        var v = row[idx];
+                        if (v === undefined || v === null) return '';
+                        return v;
+                    }
+                    function getDisplayValByIndex(idx) {
+                        var v = row[idx];
+                        if (v === undefined || v === null) return '';
+                        var formatted = formatCellValue(v);
+                        return formatted.display;
+                    }
+
+                    var segEnabled = (getValByNorm('observaciones') === 'Listo para seguimiento' || getValByNorm('pendiente') === 'Listo para seguimiento');
+                    tableHTML += '<tr class="prospeccion-main-row" id="prospeccion-row-' + displayIndex + '" data-sheetrow="' + sheetRowIndex + '" data-rowindex="' + displayIndex + '">';
+                    displayColumns.forEach(function(c, colPos) {
+                        var cellVal = row[c.sheetIndex];
+                        if (c.norm === 'observaciones' || c.norm === 'pendiente') {
+                            var currentVal = (cellVal != null && cellVal !== '') ? String(cellVal).trim() : '';
+                            if (OBS_OPTIONS.indexOf(currentVal) === -1) currentVal = 'Pendiente';
+                            var sel = '<select class="prospeccion-observacion-select" data-sheetrow="' + sheetRowIndex + '" data-col="' + (c.sheetIndex + 1) + '" onchange="onProspeccionObservacionChange(this); event.stopPropagation();" style="width:100%;padding:6px;border:1px solid #ddd;border-radius:4px;font-size:0.9em;">';
+                            OBS_OPTIONS.forEach(function(opt) {
+                                sel += '<option value="' + escapeHtml(opt) + '"' + (opt === currentVal ? ' selected' : '') + '>' + escapeHtml(opt) + '</option>';
+                            });
+                            sel += '</select>';
+                            tableHTML += '<td>' + sel + '</td>';
+                        } else {
+                            var displayStr = colPos === 0 ? ('<span class="prospeccion-expand-icon prospeccion-icon-collapsed" title="Desplegar para ver más información" aria-label="Desplegar">▶</span><span class="prospeccion-expand-icon prospeccion-icon-expanded" title="Ocultar detalle" aria-label="Ocultar" style="display:none">▼</span> ') : '';
+                            tableHTML += '<td>' + displayStr + escapeHtml(getDisplayValByIndex(c.sheetIndex)) + '</td>';
+                        }
+                    });
+                    tableHTML += '<td class="table-actions">';
+                    tableHTML += '<button type="button" class="btn btn-small btn-primary" onclick="event.stopPropagation(); prospeccionEditar(' + sheetRowIndex + ')" title="Editar">Editar</button> ';
+                    tableHTML += '<button type="button" class="btn btn-small btn-danger" onclick="event.stopPropagation(); prospeccionEliminar(' + sheetRowIndex + ')" title="Eliminar">Eliminar</button> ';
+                    tableHTML += '<span id="prospeccionBtnSeguimiento-' + displayIndex + '" style="display:' + (segEnabled ? 'inline' : 'none') + ';">';
+                    tableHTML += '<button type="button" class="btn btn-small btn-success" onclick="event.stopPropagation(); prospeccionSeguimiento(' + sheetRowIndex + ')" title="Pasar a seguimiento en Sheet1">Seguimiento</button>';
+                    tableHTML += '</span>';
+                    tableHTML += '</td></tr>';
+
+                    var oportunidadDetalle = getValByNorm('oportunidad con el cliente') || getValByNorm('oportunidades del cliente') || '';
+                    var notasFila = (prospeccionNotasByRow && prospeccionNotasByRow[String(sheetRowIndex)]) ? prospeccionNotasByRow[String(sheetRowIndex)] : [];
+                    var notasOrdenadas = notasFila.slice().sort(function(a, b) {
+                        var fa = (a && a.fecha) ? a.fecha : ''; var fb = (b && b.fecha) ? b.fecha : '';
+                        return fb.localeCompare(fa);
+                    });
+                    var comentariosHtml = oportunidadDetalle ? formatOportunidadConCliente(oportunidadDetalle) : '<span style="color:#999;">Sin comentarios</span>';
+                    var seguimientosHTML = '';
+                    if (notasOrdenadas.length === 0) {
+                        seguimientosHTML = '<div style="padding: 20px; text-align: center; color: #999;">No hay notas de seguimiento registradas</div>';
+                    } else {
+                        notasOrdenadas.forEach(function(nota) {
+                            seguimientosHTML += '<div class="seguimiento-item-expanded"><div class="seguimiento-date-expanded">' + escapeHtml(nota.fecha || '') + '</div><div class="seguimiento-text-expanded">' + (nota.texto ? formatComentarios(nota.texto) : '') + '</div></div>';
+                        });
+                    }
+                    tableHTML += '<tr class="expand-row prospeccion-expand-row" id="expand-prospeccion-' + displayIndex + '" style="display: none;">';
+                    tableHTML += '<td colspan="' + numCols + '" class="expand-cell"><div class="expand-content">';
+                    tableHTML += '<div class="expand-header"><strong>📝 Notas de Seguimiento</strong></div>';
+                    tableHTML += '<div class="comentarios-seguimiento-zone" style="margin-bottom: 20px; padding: 12px; background: #f8f9fa; border-radius: 6px; border-left: 3px solid #0066cc;">';
+                    tableHTML += '<strong style="color: #0066cc; font-size: 0.95em;">Comentarios</strong>';
+                    tableHTML += '<div style="margin-top: 6px; color: #2c3e50; line-height: 1.5; font-size: 0.9em; white-space: pre-wrap;">' + comentariosHtml + '</div></div>';
+                    tableHTML += '<div class="seguimientos-container">' + seguimientosHTML + '</div>';
+                    tableHTML += '</div></td></tr>';
+                });
+            }
+            tableHTML += '</tbody></table>';
+            tableHTML += '<style>.btn-small{padding:6px 10px;font-size:0.8em;margin:0 2px;}.prospeccion-observacion-select{cursor:pointer;}#prospeccionTable .prospeccion-main-row td{border-bottom:1px solid #f0f0f0;padding:18px 15px;}#prospeccionTable .prospeccion-main-row:last-child td{border-bottom:none;}.prospeccion-expand-icon{color:#0066cc;font-size:0.9em;margin-right:6px;vertical-align:middle;}.prospeccion-main-row.expanded .prospeccion-icon-collapsed{display:none!important;}.prospeccion-main-row.expanded .prospeccion-icon-expanded{display:inline!important;}</style>';
+
+            container.innerHTML = tableHTML;
+
+            document.querySelectorAll('.prospeccion-main-row').forEach(function(tr) {
+                tr.addEventListener('click', function(e) {
+                    if (e.target.closest('.table-actions')) return;
+                    var rowIndex = parseInt(tr.getAttribute('data-rowindex'), 10);
+                    toggleProspeccionRow(rowIndex);
+                });
+            });
+        } catch (error) {
+            console.error('Error al mostrar datos de prospección:', error);
+            var c = document.getElementById('prospeccionTableContainer');
+            if (c) c.innerHTML = '<div style="text-align: center; padding: 40px; color: #f44336;">Error al mostrar los datos.</div>';
+        }
+    }
+
+    function applyProspeccionSearch() {
+        var input = document.getElementById('prospeccionSearchInput');
+        prospeccionSearchText = input ? input.value : '';
+        if (prospeccionRawData && prospeccionRawData.length > 0) {
+            displayProspeccionData(prospeccionRawData);
+        }
+    }
+
+    function toggleProspeccionRow(rowIndex) {
+        var expandRow = document.getElementById('expand-prospeccion-' + rowIndex);
+        if (!expandRow) return;
+        document.querySelectorAll('.prospeccion-expand-row').forEach(function(row) {
+            if (row.id !== 'expand-prospeccion-' + rowIndex) {
+                row.style.display = 'none';
+                var idx = row.id.replace('expand-prospeccion-', '');
+                var main = document.getElementById('prospeccion-row-' + idx);
+                if (main) main.classList.remove('expanded');
+            }
+        });
+        if (expandRow.style.display === 'none') {
+            expandRow.style.display = '';
+            var main = document.getElementById('prospeccion-row-' + rowIndex);
+            if (main) main.classList.add('expanded');
+        } else {
+            expandRow.style.display = 'none';
+            var main = document.getElementById('prospeccion-row-' + rowIndex);
+            if (main) main.classList.remove('expanded');
+        }
+    }
+
+    function onProspeccionObservacionChange(selectEl) {
+        var sheetRow = parseInt(selectEl.getAttribute('data-sheetrow'), 10);
+        var col = parseInt(selectEl.getAttribute('data-col'), 10);
+        var value = selectEl.value;
+        if (!sheetRow || !col) return;
+        showLoading();
+        google.script.run
+            .withSuccessHandler(function() {
+                hideLoading();
+                var row = selectEl.closest('.prospeccion-main-row');
+                if (row) {
+                    var displayIndex = row.getAttribute('data-rowindex');
+                    var btnWrap = document.getElementById('prospeccionBtnSeguimiento-' + displayIndex);
+                    if (btnWrap) btnWrap.style.display = (value === 'Listo para seguimiento') ? 'inline' : 'none';
+                }
+            })
+            .withFailureHandler(function(err) { hideLoading(); alert('Error al guardar: ' + (err.message || err)); })
+            .updateProspeccionCell(sheetRow, col, value);
+    }
+
+    function prospeccionEditar(sheetRowIndex) {
+        if (!prospeccionRawData || prospeccionRawData.length < 2) return;
+        var headers = prospeccionRawData[0] || [];
+        var dataRowIndex = sheetRowIndex - 1;
+        var rowData = prospeccionRawData[dataRowIndex] || [];
+        openProspeccionEditModal(sheetRowIndex, headers, rowData);
+    }
+
+    function prospeccionEliminar(sheetRowIndex) {
+        if (!confirm('¿Eliminar esta fila de prospección?')) return;
+        showLoading();
+        google.script.run
+            .withSuccessHandler(function() { hideLoading(); loadProspeccionData(); })
+            .withFailureHandler(function(err) { hideLoading(); alert('Error al eliminar: ' + (err.message || err)); })
+            .deleteProspeccionRow(sheetRowIndex);
+    }
+
+    function prospeccionSeguimiento(sheetRowIndex) {
+        if (!confirm('¿Pasar este registro a seguimiento? Se copiará a Sheet1 y el campo Copiado se marcará como 1.')) return;
+        showLoading();
+        google.script.run
+            .withSuccessHandler(function() {
+                hideLoading();
+                loadProspeccionData();
+                alert('Registro pasado a seguimiento correctamente. Se creó la fila en Sheet1.');
+            })
+            .withFailureHandler(function(err) {
+                hideLoading();
+                alert('Error al pasar a seguimiento: ' + (err.message || err));
+            })
+            .prospeccionPasarASeguimiento(sheetRowIndex);
+    }
+
+    var prospeccionEditSheetRowIndex = null;
+    var prospeccionEditRowData = null;
+    var prospeccionIsNew = false;
+    var OBS_OPTIONS_PROSPECCION = ['Pendiente', 'Validar con Jose', 'Listo para seguimiento'];
+    var TIPO_CLIENTE_OPTIONS = ['Golondrino', 'Nuevo', 'Recurrente'];
+    var SERVICIO_OPTIONS = ['Apps Development', 'Business IT Support Services', 'IT Networking Services', 'Managed IT Services for Business', 'Network Cabling Services for Business', '(Todos los Servicios)'];
+
+    function openProspeccionNuevoModal() {
+        if (!prospeccionRawData || prospeccionRawData.length < 1) {
+            alert('Cargue primero los datos con el botón Actualizar.');
+            loadProspeccionData();
+            return;
+        }
+        prospeccionEditSheetRowIndex = null;
+        prospeccionIsNew = true;
+        prospeccionEditRowData = [];
+        var container = document.getElementById('prospeccionEditFields');
+        var rawHeaders = prospeccionRawData[0] || [];
+        var headers = rawHeaders;
+        if (!container) return;
+        document.getElementById('prospeccionEditModalTitle').textContent = '➕ Nuevo registro';
+        container.innerHTML = '';
+        for (var colIndex = 0; colIndex < headers.length; colIndex++) {
+            var rawH = rawHeaders[colIndex];
+            var norm = (rawH != null && rawH !== undefined) ? String(rawH).toLowerCase().trim() : '';
+            if (norm === 'copiado') continue;
+            var isMultiline = (norm === 'oportunidades del cliente' || norm === 'oportunidad con el cliente' || norm === 'comentarios');
+            var div = document.createElement('div');
+            div.className = isMultiline ? 'form-group full-width' : 'form-group';
+            var label = document.createElement('label');
+            label.textContent = rawH != null ? String(rawH).trim() : ('Columna ' + (colIndex + 1));
+            div.appendChild(label);
+            var isObservaciones = (norm === 'observaciones' || norm === 'pendiente');
+            var isTipoCliente = (norm === 'tipo de cliente');
+            var isServicioOfrecer = (norm === 'servicio a ofrecer');
+            if (isTipoCliente) {
+                var sel = document.createElement('select');
+                sel.className = 'prospeccion-edit-input';
+                sel.setAttribute('data-col', colIndex);
+                TIPO_CLIENTE_OPTIONS.forEach(function(opt) {
+                    var optEl = document.createElement('option');
+                    optEl.value = opt;
+                    optEl.textContent = opt;
+                    sel.appendChild(optEl);
+                });
+                div.appendChild(sel);
+            } else if (isServicioOfrecer) {
+                var sel = document.createElement('select');
+                sel.className = 'prospeccion-edit-input';
+                sel.setAttribute('data-col', colIndex);
+                SERVICIO_OPTIONS.forEach(function(opt) {
+                    var optEl = document.createElement('option');
+                    optEl.value = opt;
+                    optEl.textContent = opt;
+                    sel.appendChild(optEl);
+                });
+                div.appendChild(sel);
+            } else if (isObservaciones) {
+                var sel = document.createElement('select');
+                sel.className = 'prospeccion-edit-input';
+                sel.setAttribute('data-col', colIndex);
+                OBS_OPTIONS_PROSPECCION.forEach(function(opt) {
+                    var optEl = document.createElement('option');
+                    optEl.value = opt;
+                    optEl.textContent = opt;
+                    if (opt === 'Pendiente') optEl.selected = true;
+                    sel.appendChild(optEl);
+                });
+                div.appendChild(sel);
+            } else if (isMultiline) {
+                var textarea = document.createElement('textarea');
+                textarea.className = 'prospeccion-edit-input';
+                textarea.setAttribute('data-col', colIndex);
+                textarea.setAttribute('maxlength', '5000');
+                textarea.rows = 6;
+                textarea.style.width = '100%';
+                textarea.style.minHeight = '120px';
+                textarea.style.resize = 'vertical';
+                div.appendChild(textarea);
+            } else {
+                var input = document.createElement('input');
+                input.type = 'text';
+                input.className = 'prospeccion-edit-input';
+                input.setAttribute('data-col', colIndex);
+                input.value = '';
+                div.appendChild(input);
+            }
+            container.appendChild(div);
+        }
+        document.getElementById('prospeccionEditModal').classList.add('active');
+    }
+
+    function openProspeccionEditModal(sheetRowIndex, headers, rowData) {
+        prospeccionIsNew = false;
+        prospeccionEditSheetRowIndex = sheetRowIndex;
+        prospeccionEditRowData = rowData || [];
+        var container = document.getElementById('prospeccionEditFields');
+        var rawHeaders = prospeccionRawData[0] || [];
+        if (!container) return;
+        container.innerHTML = '';
+        headers.forEach(function(header, colIndex) {
+            var rawH = rawHeaders[colIndex];
+            var norm = (rawH != null && rawH !== undefined) ? String(rawH).toLowerCase().trim() : '';
+            if (norm === 'copiado') return;
+            var isMultiline = (norm === 'oportunidades del cliente' || norm === 'oportunidad con el cliente' || norm === 'comentarios');
+            var isObservaciones = (norm === 'observaciones' || norm === 'pendiente');
+            var isTipoCliente = (norm === 'tipo de cliente');
+            var isServicioOfrecer = (norm === 'servicio a ofrecer');
+            var val = rowData[colIndex] !== undefined && rowData[colIndex] !== null ? String(rowData[colIndex]) : '';
+            var div = document.createElement('div');
+            div.className = isMultiline ? 'form-group full-width' : 'form-group';
+            var label = document.createElement('label');
+            label.textContent = header || ('Columna ' + (colIndex + 1));
+            div.appendChild(label);
+            if (isTipoCliente) {
+                var selTipo = document.createElement('select');
+                selTipo.className = 'prospeccion-edit-input';
+                selTipo.setAttribute('data-col', colIndex);
+                TIPO_CLIENTE_OPTIONS.forEach(function(opt) {
+                    var optEl = document.createElement('option');
+                    optEl.value = opt;
+                    optEl.textContent = opt;
+                    if (opt === val) optEl.selected = true;
+                    selTipo.appendChild(optEl);
+                });
+                if (val && TIPO_CLIENTE_OPTIONS.indexOf(val) === -1) selTipo.value = TIPO_CLIENTE_OPTIONS[0];
+                div.appendChild(selTipo);
+            } else if (isServicioOfrecer) {
+                var selServ = document.createElement('select');
+                selServ.className = 'prospeccion-edit-input';
+                selServ.setAttribute('data-col', colIndex);
+                SERVICIO_OPTIONS.forEach(function(opt) {
+                    var optEl = document.createElement('option');
+                    optEl.value = opt;
+                    optEl.textContent = opt;
+                    if (opt === val) optEl.selected = true;
+                    selServ.appendChild(optEl);
+                });
+                if (val && SERVICIO_OPTIONS.indexOf(val) === -1) selServ.value = SERVICIO_OPTIONS[0];
+                div.appendChild(selServ);
+            } else if (isObservaciones) {
+                var sel = document.createElement('select');
+                sel.className = 'prospeccion-edit-input';
+                sel.setAttribute('data-col', colIndex);
+                OBS_OPTIONS_PROSPECCION.forEach(function(opt) {
+                    var optEl = document.createElement('option');
+                    optEl.value = opt;
+                    optEl.textContent = opt;
+                    if (opt === val || (val === '' && opt === 'Pendiente')) optEl.selected = true;
+                    sel.appendChild(optEl);
+                });
+                if (val && OBS_OPTIONS_PROSPECCION.indexOf(val) === -1) { sel.value = 'Pendiente'; }
+                div.appendChild(sel);
+            } else if (isMultiline) {
+                var textarea = document.createElement('textarea');
+                textarea.className = 'prospeccion-edit-input';
+                textarea.setAttribute('data-col', colIndex);
+                textarea.setAttribute('maxlength', '5000');
+                textarea.rows = 8;
+                textarea.style.width = '100%';
+                textarea.style.minHeight = '120px';
+                textarea.style.resize = 'vertical';
+                textarea.value = val;
+                div.appendChild(textarea);
+            } else {
+                var input = document.createElement('input');
+                input.type = 'text';
+                input.className = 'prospeccion-edit-input';
+                input.setAttribute('data-col', colIndex);
+                input.value = val;
+                div.appendChild(input);
+            }
+            container.appendChild(div);
+        });
+        document.getElementById('prospeccionEditModalTitle').textContent = '✏️ Editar fila de prospección';
+        document.getElementById('prospeccionEditModal').classList.add('active');
+    }
+
+    function closeProspeccionEditModal() {
+        prospeccionEditSheetRowIndex = null;
+        prospeccionIsNew = false;
+        var modal = document.getElementById('prospeccionEditModal');
+        if (modal) modal.classList.remove('active');
+    }
+
+    function saveProspeccionEdit() {
+        var rawHeaders = prospeccionRawData[0] || [];
+        var numCols = rawHeaders.length;
+        var values = [];
+        for (var c = 0; c < numCols; c++) {
+            var norm = (rawHeaders[c] != null && rawHeaders[c] !== undefined) ? String(rawHeaders[c]).toLowerCase().trim() : '';
+            if (norm === 'copiado') {
+                values.push(prospeccionEditSheetRowIndex != null && prospeccionEditRowData[c] !== undefined && prospeccionEditRowData[c] !== null ? prospeccionEditRowData[c] : 0);
+            } else {
+                var input = document.querySelector('#prospeccionEditFields .prospeccion-edit-input[data-col="' + c + '"]');
+                values.push(input ? input.value : '');
+            }
+        }
+        showLoading();
+        if (prospeccionEditSheetRowIndex == null) {
+            google.script.run
+                .withSuccessHandler(function() { hideLoading(); closeProspeccionEditModal(); loadProspeccionData(); alert('Registro guardado correctamente.'); })
+                .withFailureHandler(function(err) { hideLoading(); alert('Error al guardar: ' + (err.message || err)); })
+                .addProspeccionRow(values);
+        } else {
+            google.script.run
+                .withSuccessHandler(function() { hideLoading(); closeProspeccionEditModal(); loadProspeccionData(); })
+                .withFailureHandler(function(err) { hideLoading(); alert('Error al guardar: ' + (err.message || err)); })
+                .updateProspeccionRow(prospeccionEditSheetRowIndex, values);
+        }
+    }
+
+    // Función auxiliar para formatear valores de celdas
+    function formatCellValue(cellValue) {
+        let display = '';
+        let raw = cellValue;
+        
+        if (cellValue instanceof Date) {
+            try {
+                const year = cellValue.getFullYear();
+                const month = String(cellValue.getMonth() + 1).padStart(2, '0');
+                const day = String(cellValue.getDate()).padStart(2, '0');
+                display = `${year}-${month}-${day}`;
+                raw = display;
+            } catch (e) {
+                display = cellValue.toLocaleDateString('es-ES');
+                raw = display;
+            }
+        } else if (typeof cellValue === 'number') {
+            if (cellValue >= 1 && cellValue <= 50000 && cellValue % 1 === 0) {
+                try {
+                    const baseDate = new Date(1899, 11, 30);
+                    const date = new Date(baseDate.getTime() + (cellValue - 1) * 86400000);
+                    const year = date.getFullYear();
+                    const month = String(date.getMonth() + 1).padStart(2, '0');
+                    const day = String(date.getDate()).padStart(2, '0');
+                    display = `${year}-${month}-${day}`;
+                    raw = display;
+                } catch (e) {
+                    display = cellValue.toLocaleString('es-ES');
+                    raw = cellValue;
+                }
+            } else {
+                display = cellValue.toLocaleString('es-ES');
+                raw = cellValue;
+            }
+        } else {
+            display = String(cellValue);
+            raw = cellValue;
+        }
+        
+        return { display, raw };
+    }
+
+    // ============================================
+    // FUNCIONES CRUD
+    // ============================================
+
+    function deleteLead(index) {
+        if (!confirm('¿Está seguro de eliminar este lead?')) return;
+        
+        // El índice viene de tableData, necesitamos encontrar el lead en filteredData
+        const leadFromTable = tableData[index];
+        if (!leadFromTable) return;
+        
+        // Buscar el índice en filteredData usando rowIndex
+        const realIndex = filteredData.findIndex(l => l.rowIndex === leadFromTable.rowIndex);
+        if (realIndex === -1) return;
+        
+        const lead = filteredData[realIndex];
+        
+        showLoading();
+        google.script.run
+            .withSuccessHandler(function(result) {
+                hideLoading();
+                if (result.success) {
+                    alert('✅ Lead eliminado exitosamente');
+                    loadData();
+                } else {
+                    alert('Error al eliminar el lead');
+                }
+            })
+            .withFailureHandler(function(error) {
+                hideLoading();
+                alert('Error: ' + error.message);
+            })
+            .deleteLead(lead.rowIndex);
+    }
+
+    // ============================================
+    // FORM SUBMISSION
+    // ============================================
+
+    // Función para manejar el envío del formulario (disponible globalmente)
+    window.handleFormSubmit = function(e) {
+        if (e) {
+        e.preventDefault();
+            e.stopPropagation();
+        }
+        
+        // Validar que el formulario existe
+        const leadForm = document.getElementById('leadForm');
+        if (!leadForm) {
+            console.error('Formulario no encontrado');
+            return false;
+        }
+        
+        // Validar que el formulario es válido
+        if (!leadForm.checkValidity()) {
+            leadForm.reportValidity();
+            return false;
+        }
+        
+        // Validación de fechas
+        const creacion = document.getElementById('inputCreacion').value;
+        const contactado = document.getElementById('inputContactado').value;
+        const calificado = document.getElementById('inputCalificado').value;
+        const visita = document.getElementById('inputVisita').value;
+        const propuesta = document.getElementById('inputPropuesta').value;
+        const conversion = document.getElementById('inputConversion').value;
+        const rechazo = document.getElementById('inputRechazo').value;
+        
+        // Validar que las fechas posteriores no sean anteriores a la creación
+        if (creacion) {
+            const fechaCreacion = parseDateGMT5(creacion);
+            if (!fechaCreacion) {
+                alert('⚠️ La fecha de creación no es válida.');
+                return;
+            }
+            const fechas = [
+                { nombre: 'Contactado', valor: contactado },
+                { nombre: 'Calificado', valor: calificado },
+                { nombre: 'Visita', valor: visita },
+                { nombre: 'Propuesta', valor: propuesta },
+                { nombre: 'Conversión', valor: conversion },
+                { nombre: 'Rechazo', valor: rechazo }
+            ];
+            
+            for (let fecha of fechas) {
+                if (fecha.valor) {
+                    const fechaComparar = parseDateGMT5(fecha.valor);
+                    if (fechaComparar && fechaComparar.getTime() < fechaCreacion.getTime()) {
+                    alert(`⚠️ La fecha de ${fecha.nombre} no puede ser anterior a la fecha de creación.`);
+                    return;
+                    }
+                }
+            }
+            
+            // Validar que Conversión y Rechazo no estén ambos llenos
+            if (conversion && rechazo) {
+                alert('⚠️ Un lead no puede tener fecha de Conversión y Rechazo al mismo tiempo.');
+                return;
+            }
+        }
+        
+        // Validar que Factura sea un número válido si se proporciona
+        const facturaInput = document.getElementById('inputFactura').value;
+        if (facturaInput && (isNaN(parseFloat(facturaInput)) || parseFloat(facturaInput) < 0)) {
+            alert('⚠️ El valor de Factura debe ser un número válido mayor o igual a 0.');
+            return;
+        }
+        
+        // Validar campos requeridos
+        const contact = document.getElementById('inputContact').value.trim();
+        const company = document.getElementById('inputCompany').value.trim();
+        const correo = document.getElementById('inputCorreo').value.trim();
+        const telefono = document.getElementById('inputTelefono').value.trim();
+        const source = document.getElementById('inputSource').value;
+        
+        if (!contact || !company || !source) {
+            alert('⚠️ Por favor complete los campos requeridos: Contacto, Compañía y Fuente.');
+            return;
+        }
+        if (!correo || correo.indexOf('@') === -1) {
+            alert('⚠️ El correo debe contener el símbolo @.');
+            return;
+        }
+        if (telefono && !/^[0-9+\s]+$/.test(telefono)) {
+            alert('⚠️ El teléfono debe contener solo números y el signo +.');
+            return;
+        }
+        
+        // Preparar datos del lead, convirtiendo null/undefined a strings vacíos para evitar problemas
+        const leadData = {
+            Contact: contact,
+            Company: company,
+            Correo: correo,
+            Telefono: telefono,
+            Source: source,
+            Creación: creacion || '',
+            Requerimiento: document.getElementById('inputRequerimiento').value.trim() || '',
+            ActiveCampaign: (function() { var v = document.getElementById('inputActiveCampaign').value; return (v === 'Si' || v === 'No') ? v : ''; })(),
+            Contactado: contactado || '',
+            Calificado: calificado || '',
+            NoCalificado: document.getElementById('inputNoCalificado').value || '',
+            Visita: visita || '',
+            Propuesta: propuesta || '',
+            Conversión: conversion || '',
+            Rechazo: rechazo || '',
+            Factura: facturaInput ? parseFloat(facturaInput) : '',
+            SeguimientoInicial: document.getElementById('inputSeguimiento').value.trim() || '',
+            Seguimientos: []
+        };
+        
+        console.log('Enviando leadData:', leadData);
+        showLoading();
+        
+        if (editingLeadIndex >= 0) {
+            // Editar lead existente
+            const lead = filteredData[editingLeadIndex];
+            leadData.rowIndex = lead.rowIndex;
+            leadData.Seguimientos = lead.Seguimientos || [];
+            
+            google.script.run
+                .withSuccessHandler(function(result) {
+                    if (result && result.success) {
+                        closeLeadModal();
+                        // Recargar datos inmediatamente (una sola operación)
+                        loadData();
+                    } else {
+                        hideLoading();
+                        alert('Error al actualizar el lead: ' + (result ? result.message || 'Error desconocido' : 'Sin respuesta del servidor'));
+                    }
+                })
+                .withFailureHandler(function(error) {
+                    hideLoading();
+                    console.error('Error al actualizar lead:', error);
+                    alert('Error al actualizar el lead: ' + (error.message || error.toString() || 'Error desconocido'));
+                })
+                .updateLead(leadData);
+        } else {
+            // Agregar nuevo lead
+            // Timeout de seguridad para evitar que se quede colgado
+            let timeoutId = setTimeout(function() {
+                hideLoading();
+                console.error('Timeout al agregar lead - la operación tardó más de 30 segundos');
+                alert('⚠️ La operación está tardando demasiado.\n\nEsto puede deberse a:\n- Problemas de conexión\n- El servidor está procesando\n\nPor favor, espere unos segundos y verifique si el lead se guardó. Si no, intente nuevamente.');
+            }, 30000); // 30 segundos
+            
+            try {
+            google.script.run
+                .withSuccessHandler(function(result) {
+                        try {
+                            clearTimeout(timeoutId);
+                            console.log('Respuesta del servidor recibida:', result);
+                            console.log('Tipo de respuesta:', typeof result);
+                            
+                            // Verificar si la respuesta es válida
+                            if (result === null || result === undefined) {
+                    hideLoading();
+                                alert('⚠️ No se recibió respuesta del servidor. Por favor, intente nuevamente.');
+                                return;
+                            }
+                            
+                            // Si result es un string, intentar parsearlo como JSON
+                            if (typeof result === 'string') {
+                                try {
+                                    result = JSON.parse(result);
+                                } catch (e) {
+                                    console.error('Error al parsear respuesta como JSON:', e);
+                                    hideLoading();
+                                    alert('⚠️ Respuesta del servidor en formato incorrecto. Por favor, intente nuevamente.');
+                                    return;
+                                }
+                            }
+                            
+                            // Verificar si result tiene la propiedad success
+                            if (result && typeof result === 'object' && 'success' in result) {
+                                if (result.success === true || result.success === 'true') {
+                        closeLeadModal();
+                                    // Recargar datos inmediatamente (una sola operación)
+                                    try {
+                        loadData();
+                                    } catch (loadError) {
+                                        hideLoading();
+                                        console.error('Error al recargar datos:', loadError);
+                                        alert('⚠️ Lead guardado, pero hubo un problema al recargar la lista. Por favor, actualice la página manualmente.');
+                                    }
+                    } else {
+                                    hideLoading();
+                                    const errorMsg = result.message || result.error || 'Error desconocido del servidor';
+                                    alert('❌ Error al agregar el lead:\n' + errorMsg);
+                                    console.error('Error del servidor:', result);
+                                }
+                            } else {
+                                // Respuesta inesperada pero no necesariamente un error
+                                hideLoading();
+                                console.warn('Respuesta inesperada del servidor:', result);
+                                alert('⚠️ Respuesta inesperada del servidor. El lead puede haberse guardado. Por favor, verifique y recargue la página si es necesario.');
+                                closeLeadModal();
+                            }
+                        } catch (handlerError) {
+                            clearTimeout(timeoutId);
+                            hideLoading();
+                            console.error('Error en successHandler:', handlerError);
+                            console.error('Stack trace:', handlerError.stack);
+                            alert('⚠️ Error al procesar la respuesta:\n' + (handlerError.message || handlerError.toString()) + '\n\nPor favor, verifique si el lead se guardó y recargue la página.');
+                    }
+                })
+                .withFailureHandler(function(error) {
+                        try {
+                            clearTimeout(timeoutId);
+                    hideLoading();
+                            console.error('Error completo al agregar lead:', error);
+                            console.error('Tipo de error:', typeof error);
+                            console.error('Stack trace:', error.stack);
+                            
+                            let errorMessage = 'Error desconocido';
+                            if (error) {
+                                if (error.message) {
+                                    errorMessage = error.message;
+                                } else if (typeof error === 'string') {
+                                    errorMessage = error;
+                                } else {
+                                    errorMessage = JSON.stringify(error);
+                                }
+                            }
+                            
+                            alert('❌ Error al agregar el lead:\n' + errorMessage + '\n\nPor favor, verifique la consola para más detalles.');
+                        } catch (handlerError) {
+                            clearTimeout(timeoutId);
+                            hideLoading();
+                            console.error('Error en failureHandler:', handlerError);
+                            alert('⚠️ Error crítico. Por favor, recargue la página.');
+                        }
+                })
+                .addLead(leadData);
+            } catch (error) {
+                clearTimeout(timeoutId);
+                hideLoading();
+                console.error('Error al llamar addLead:', error);
+                console.error('Stack trace:', error.stack);
+                alert('❌ Error al procesar la solicitud:\n' + (error.message || error.toString() || 'Error desconocido'));
+            }
+        }
+        
+        return false; // Prevenir cualquier envío del formulario
+    };
+
+    // ============================================
+    // EVENT LISTENERS
+    // ============================================
+
+    // Close modals on outside click
+    window.addEventListener('click', function(e) {
+        if (e.target.id === 'leadModal') {
+            closeLeadModal();
+        }
+        if (e.target.id === 'trackingModal') {
+            closeTrackingModal();
+        }
+    });
+
+    // ============================================
+    // INICIALIZACIÓN
+    // ============================================
+
+    // ============================================
+    // MANEJO GLOBAL DE ERRORES
+    // ============================================
+    
+    // Capturar errores no manejados
+    window.addEventListener('error', function(event) {
+        console.error('Error no manejado:', event.error);
+        console.error('Mensaje:', event.message);
+        console.error('Archivo:', event.filename);
+        console.error('Línea:', event.lineno);
+        console.error('Columna:', event.colno);
+        console.error('Stack:', event.error ? event.error.stack : 'No disponible');
+        
+        // Asegurarse de ocultar el loading si está visible
+        hideLoading();
+        
+        // Mostrar mensaje al usuario
+        alert('⚠️ Se produjo un error inesperado. Por favor, recargue la página.\n\nError: ' + (event.message || 'Error desconocido'));
+    });
+    
+    // Capturar promesas rechazadas no manejadas
+    window.addEventListener('unhandledrejection', function(event) {
+        console.error('Promesa rechazada no manejada:', event.reason);
+        console.error('Stack:', event.reason ? event.reason.stack : 'No disponible');
+        
+        hideLoading();
+        
+        alert('⚠️ Se produjo un error al procesar una operación. Por favor, recargue la página.\n\nError: ' + (event.reason ? (event.reason.message || event.reason.toString()) : 'Error desconocido'));
+    });
+
+    // ============================================
+    // INICIALIZACIÓN
+    // ============================================
+
+    // Registrar event listener del formulario cuando el DOM esté listo
+    function initFormListener() {
+        const leadForm = document.getElementById('leadForm');
+        if (leadForm) {
+            leadForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                if (window.handleFormSubmit) {
+                    window.handleFormSubmit(e);
+                }
+                return false;
+            });
+        } else {
+            // Si el formulario aún no existe, intentar de nuevo después de un breve delay
+            setTimeout(initFormListener, 100);
+        }
+    }
+    
+    // Función de inicialización segura
+    function safeInitialize() {
+        if (isInitialized) {
+            console.warn('La página ya fue inicializada, saltando inicialización duplicada');
+            return;
+        }
+        
+        try {
+            // Verificar que los elementos críticos existan
+            const dashboardContent = document.getElementById('dashboardContent');
+            const gestionContent = document.getElementById('gestionContent');
+            const prospeccionContent = document.getElementById('prospeccionContent');
+            const tabDashboard = document.getElementById('tabDashboard');
+            
+            if (!dashboardContent || !gestionContent || !prospeccionContent || !tabDashboard) {
+                console.warn('Elementos críticos no encontrados, reintentando en 100ms...');
+                setTimeout(safeInitialize, 100);
+                return;
+            }
+            google.script.run
+                .withSuccessHandler(function(info) {
+                    var el = document.getElementById('appVersionInfo');
+                    if (el && info) el.textContent = 'Versión ' + (info.version || '1.0.0') + ' | Última compilación: ' + (info.lastCompilation || '');
+                })
+                .withFailureHandler(function() {
+                    var el = document.getElementById('appVersionInfo');
+                    if (el) el.textContent = 'Versión 1.0.0 | Última compilación: -';
+                })
+                .getAppVersionInfo();
+            
+            isInitialized = true;
+            
+            // Registrar el event listener del formulario
+            initFormListener();
+            
+            // Activar pestaña Dashboard por defecto
+            switchMainTab('dashboard', null);
+            
+            // Cargar datos después de un pequeño delay para asegurar que el DOM esté listo
+            setTimeout(function() {
+                try {
+                    loadData();
+                } catch (loadError) {
+                    console.error('Error al cargar datos en inicialización:', loadError);
+                    hideLoading();
+                }
+            }, 200);
+        } catch (error) {
+            console.error('Error en inicialización:', error);
+            console.error('Stack trace:', error.stack);
+            hideLoading();
+            alert('❌ Error al inicializar la aplicación. Por favor, recargue la página.');
+        }
+    }
+
+    // Cargar datos al inicio
+    window.addEventListener('load', function() {
+        safeInitialize();
+    });
+    
+    // También intentar inicializar cuando el DOM esté listo (por si el evento load ya pasó)
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function() {
+            if (!isInitialized) {
+                safeInitialize();
+            }
+        });
+    } else if (document.readyState === 'complete' || document.readyState === 'interactive') {
+        // DOM ya está listo
+        if (!isInitialized) {
+            setTimeout(safeInitialize, 100);
+        }
+    }
+    
+    // También intentar registrar el listener cuando el DOM esté listo (por si acaso)
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initFormListener);
+    } else {
+        // DOM ya está listo
+        initFormListener();
+    }
+</script>
+
+
+    <div id="loading" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 10000; align-items: center; justify-content: center;">
+        <div style="background: white; padding: 30px; border-radius: 15px; text-align: center;">
+            <div style="font-size: 3em; margin-bottom: 15px;">⏳</div>
+            <div style="font-size: 1.2em; color: #2c3e50;">Cargando...</div>
+        </div>
+    </div>
+
+    <div class="dashboard-container">
+        <div class="header">
+            <div class="header-left">
+                <div class="header-icon">📊</div>
+                <div class="header-text">
+                    <h1>Dashboard Control Comercial - ITUSA</h1>
+                    <p>Sistema completo de gestión y seguimiento de leads comerciales | Actualizado en tiempo real</p>
+                    <p class="app-version-info" id="appVersionInfo">Cargando versión…</p>
+                </div>
+            </div>
+            <div class="header-stats">
+                <div class="header-stat">
+                    <div class="header-stat-value" id="totalLeads">0</div>
+                    <div class="header-stat-label">Total Leads</div>
+                </div>
+                <div class="header-stat">
+                    <div class="header-stat-value" id="totalFacturado">$0</div>
+                    <div class="header-stat-label">Facturado</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Pestañas principales -->
+        <div class="main-tabs-section">
+            <div class="main-tabs-container">
+                <button class="main-tab-btn active" onclick="switchMainTab('dashboard', event)" id="tabDashboard">
+                    📊 Dashboard
+                </button>
+                <button class="main-tab-btn" onclick="switchMainTab('gestion', event)" id="tabGestion">
+                    📋 Gestión de Leads
+                </button>
+                <button class="main-tab-btn" onclick="switchMainTab('prospeccion', event)" id="tabProspeccion">
+                    👥 Prospección Clientes
+                </button>
+            </div>
+        </div>
+
+        <!-- Filtros (solo Dashboard y Gestión de Leads; se ocultan en Prospección) -->
+        <div class="filters" id="mainFilters">
+            <div class="filter-group">
+                <label>Fuente (Source)</label>
+                <select id="filterSource">
+                    <option value="all">Todas las fuentes</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label>Fecha Desde</label>
+                <input type="date" id="filterDateFrom">
+            </div>
+            <div class="filter-group">
+                <label>Fecha Hasta</label>
+                <input type="date" id="filterDateTo">
+            </div>
+            <div class="filter-group">
+                <label>Estado</label>
+                <select id="filterStatus">
+                    <option value="all">Todos</option>
+                    <option value="convertido">Convertido</option>
+                    <option value="proceso">En Proceso</option>
+                    <option value="rechazado">Rechazado</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <button class="btn btn-secondary" onclick="refreshData()" style="margin-top: 20px;">🔄 Actualizar</button>
+            </div>
+        </div>
+
+        <!-- Contenido de Dashboard -->
+        <div id="dashboardContent" class="tab-content active">
+            <!-- Estructura de dos columnas -->
+            <div class="dashboard-main-layout">
+                <!-- Columna 1: Últimos Seguimientos -->
+                <div class="ultimos-seguimientos-column">
+                    <div class="ultimos-seguimientos-title">📝 Últimos Seguimientos</div>
+                    <div class="ultimos-seguimientos-list" id="ultimosSeguimientosList">
+                        <div class="ultimos-seguimientos-empty">Cargando seguimientos...</div>
+                    </div>
+                </div>
+
+                <!-- Columna 2: Indicadores -->
+                <div class="indicadores-column">
+                    <!-- Primera fila: 6 indicadores pequeños -->
+        <div class="kpi-grid">
+            <div class="kpi-card">
+                <div class="kpi-label">Total de Leads</div>
+                <div class="kpi-value" id="kpiTotalLeads">0</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">Leads Calificados</div>
+                <div class="kpi-value" id="kpiCalificados">0</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">Visitas Realizadas</div>
+                <div class="kpi-value" id="kpiVisitas">0</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">Conversiones</div>
+                <div class="kpi-value" id="kpiConversiones">0</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">Tasa de Conversión</div>
+                <div class="kpi-value" id="kpiConversion">0%</div>
+                <div class="kpi-trend trend-up" id="kpiConversionTrend"></div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">Días Prom. a Conversión</div>
+                <div class="kpi-value" id="kpiDiasConversion">0</div>
+            </div>
+        </div>
+
+                    <!-- Segunda fila: 4 indicadores grandes -->
+            <div class="stats-cards-grid">
+                        <div class="stat-card purple" onclick="openFacturacionModal()" style="cursor: pointer;">
+                    <div class="stat-card-label">💰 FACTURACIÓN de LEADS</div>
+                    <div class="stat-card-value" id="statTotalFacturacion">$0</div>
+                    <div class="stat-card-subvalue" id="statTotalFacturacionSub">0 leads facturados</div>
+                </div>
+                <div class="stat-card pink">
+                    <div class="stat-card-label">📊 PROMEDIO POR LEAD</div>
+                    <div class="stat-card-value" id="statPromedioLead">$0</div>
+                    <div class="stat-card-subvalue" id="statPromedioLeadSub">ticket promedio</div>
+                </div>
+                <div class="stat-card cyan">
+                    <div class="stat-card-label">🎯 MEJOR MES</div>
+                    <div class="stat-card-value" id="statMejorMes">-</div>
+                    <div class="stat-card-subvalue" id="statMejorMesSub">0 leads</div>
+                </div>
+                <div class="stat-card orange">
+                    <div class="stat-card-label">📈 FUENTE TOP</div>
+                    <div class="stat-card-value" id="statFuenteTop">-</div>
+                    <div class="stat-card-subvalue" id="statFuenteTopSub">0 leads</div>
+                        </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Analysis Section -->
+        <div class="analysis-section">
+            <div class="analysis-header">
+                <div class="analysis-title">
+                    📈 Análisis y Estadísticas
+                </div>
+            </div>
+            <div class="analysis-content">
+                <div class="chart-card">
+                    <div class="chart-title"><span class="chart-icon"></span>📈 Evolución Temporal</div>
+                    <canvas id="chartEvolucion"></canvas>
+                    <div style="margin-top: 30px; padding-top: 30px; border-top: 2px solid #f0f0f0;">
+                        <div class="chart-title"><span class="chart-icon"></span>📊 Evolución de Leads - Últimos 30 Días</div>
+                        <canvas id="chartUltimos30Dias"></canvas>
+                    </div>
+                </div>
+                <div class="top-card">
+                    <div class="top-card-header">
+                        <div>
+                            <div class="top-card-title">📊 Embudo de Conversión</div>
+                            <div class="top-card-subtitle">Progreso de leads por etapa</div>
+                        </div>
+                    </div>
+                    <div class="ranking-list" id="funnelList">
+                        <!-- Embudo se cargará aquí -->
+                    </div>
+                </div>
+                <div class="top-card">
+                    <div class="top-card-header">
+                        <div>
+                            <div class="top-card-title">🏆 Top Fuentes</div>
+                            <div class="top-card-subtitle">Fuentes con más leads</div>
+                        </div>
+                    </div>
+                    <div class="ranking-list" id="rankingList">
+                        <!-- Rankings se cargarán aquí -->
+                    </div>
+                </div>
+            </div>
+        </div>
+            </div>
+        <!-- Fin del contenido de Dashboard -->
+
+        <!-- Contenido de Gestión de Leads -->
+        <div id="gestionContent" class="tab-content">
+        <!-- Buscador -->
+        <div class="search-section" style="background: white; padding: 20px 40px; margin-bottom: 0; box-shadow: 0 2px 8px rgba(0,0,0,0.08); border-bottom: 1px solid #e0e0e0;">
+            <div style="display: flex; gap: 15px; align-items: center; flex-wrap: wrap;">
+                <div style="flex: 1; min-width: 300px;">
+                    <label style="display: block; font-size: 0.85em; color: #666; font-weight: 600; margin-bottom: 8px; text-transform: uppercase;">🔍 Buscar por Contacto o Compañía</label>
+                    <input type="text" id="searchInput" placeholder="Escribe el nombre del contacto o compañía..." style="width: 100%; padding: 12px 15px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 0.95em; outline: none; transition: all 0.3s;" onkeyup="applySearchDebounced()" oninput="applySearchDebounced()">
+            </div>
+                <div style="display: flex; gap: 10px; align-items: flex-end;">
+                    <button class="btn btn-secondary" onclick="clearSearch()" style="margin-top: 0;">🗑️ Limpiar</button>
+                    <button class="btn btn-primary" onclick="openAddLeadModal()" style="margin-top: 0;">➕ Nuevo Lead</button>
+                    <button class="btn btn-success" onclick="refreshData()">🔄 Actualizar</button>
+                </div>
+            </div>
+        </div>
+        <div class="table-container">
+            <table id="leadsTable">
+                <thead>
+                    <tr>
+                        <th>Contacto</th>
+                        <th>Compañía</th>
+                        <th>Correo</th>
+                        <th>Teléfono</th>
+                        <th>Fuente</th>
+                        <th>Fecha Creación</th>
+                        <th>Estado</th>
+                        <th>Active Campaign</th>
+                        <th>Factura</th>
+                        <th>Días en Proceso</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+        </div>
+        <!-- Fin del contenido de Gestión de Leads -->
+
+        <!-- Contenido de Prospección Clientes -->
+        <div id="prospeccionContent" class="tab-content">
+            <div id="prospeccionSearchSection" style="display: none; background: white; padding: 16px 40px; margin-bottom: 0; border-bottom: 1px solid #e0e0e0;">
+                <label style="display: block; font-size: 0.85em; color: #666; font-weight: 600; margin-bottom: 8px;">🔍 Buscar por Cliente o Contacto</label>
+                <input type="text" id="prospeccionSearchInput" placeholder="Escribe cliente o contacto..." style="width: 100%; max-width: 400px; padding: 10px 14px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 0.95em;" oninput="applyProspeccionSearch()" onkeyup="applyProspeccionSearch()">
+            </div>
+            <div class="table-container" style="margin: 0; padding: 30px 40px;">
+                <div class="table-header">
+                    <div class="chart-title"><span class="chart-icon"></span>Prospección de Clientes</div>
+                    <div style="display: flex; gap: 10px;">
+                        <button class="btn btn-primary" onclick="openProspeccionNuevoModal()">➕ Nuevo</button>
+                        <button class="btn btn-success" onclick="loadProspeccionData()">🔄 Actualizar</button>
+                    </div>
+                </div>
+                <p id="prospeccionCountSummary" class="prospeccion-count-summary" style="margin: 8px 0 16px 0; font-size: 0.95em; color: #666;">0 Clientes gestionados de un total de: 0</p>
+                <div id="prospeccionTableContainer">
+                    <div style="text-align: center; padding: 40px; color: #999;">
+                        Cargando datos de prospección...
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- Fin del contenido de Prospección Clientes -->
+    </div>
+
+    <!-- Botón flotante para agregar lead -->
+    <button class="add-lead-btn" onclick="openAddLeadModal()" title="Agregar Nuevo Lead" aria-label="Agregar nuevo lead">+</button>
+
+    <!-- Modal para agregar/editar lead -->
+    <div id="leadModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modalTitle">➕ Agregar Nuevo Lead</h2>
+                <button class="close-btn" onclick="closeLeadModal()" aria-label="Cerrar modal">&times;</button>
+            </div>
+            <form id="leadForm" onsubmit="return false;">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>Contacto *</label>
+                        <input type="text" id="inputContact" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Compañía *</label>
+                        <input type="text" id="inputCompany" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Correo *</label>
+                        <input type="email" id="inputCorreo" placeholder="ejemplo@dominio.com" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Teléfono</label>
+                        <input type="text" id="inputTelefono" placeholder="+51 999 123 456">
+                    </div>
+                    <div class="form-group">
+                        <label>Fuente *</label>
+                        <select id="inputSource" required>
+                            <option value="">Seleccione...</option>
+                            <option value="Google Ads">Google Ads</option>
+                            <option value="Website">Website</option>
+                            <option value="Referido">Referido</option>
+                            <option value="JV">JV</option>
+                            <option value="Calendly">Calendly</option>
+                            <option value="Active Campaign">Active Campaign</option>
+                            <option value="BDCliente">BDCliente</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Fecha Creación *</label>
+                        <input type="date" id="inputCreacion" required>
+                    </div>
+                    <div class="form-group full-width">
+                        <label>Requerimiento</label>
+                        <textarea id="inputRequerimiento"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Active Campaign</label>
+                        <select id="inputActiveCampaign">
+                            <option value="">Seleccione...</option>
+                            <option value="Si">Si</option>
+                            <option value="No">No</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Fecha Contactado</label>
+                        <input type="date" id="inputContactado">
+                    </div>
+                    <div class="form-group">
+                        <label>Fecha Calificado</label>
+                        <input type="date" id="inputCalificado">
+                    </div>
+                    <div class="form-group">
+                        <label>Fecha No Calificado</label>
+                        <input type="date" id="inputNoCalificado">
+                    </div>
+                    <div class="form-group">
+                        <label>Fecha Visita</label>
+                        <input type="date" id="inputVisita">
+                    </div>
+                    <div class="form-group">
+                        <label>Fecha Propuesta</label>
+                        <input type="date" id="inputPropuesta">
+                    </div>
+                    <div class="form-group">
+                        <label>Fecha Conversión</label>
+                        <input type="date" id="inputConversion">
+                    </div>
+                    <div class="form-group">
+                        <label>Fecha Rechazo</label>
+                        <input type="date" id="inputRechazo">
+                    </div>
+                    <div class="form-group">
+                        <label>Factura ($)</label>
+                        <input type="number" id="inputFactura" min="0" step="0.01">
+                    </div>
+                    <div class="form-group full-width">
+                        <label>Notas de Seguimiento Inicial</label>
+                        <textarea id="inputSeguimiento" placeholder="Ingrese notas sobre el seguimiento del lead..."></textarea>
+                    </div>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeLeadModal()">Cancelar</button>
+                    <button type="button" class="btn btn-primary" id="submitBtn" onclick="handleFormSubmit(event)">Guardar Lead</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal para seguimiento de lead -->
+    <div id="trackingModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="trackingModalTitle">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="trackingModalTitle">📋 Seguimiento de Lead</h2>
+                <button class="close-btn" onclick="closeTrackingModal()" aria-label="Cerrar modal">&times;</button>
+            </div>
+            <div id="trackingLeadInfo" style="margin-bottom: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px;">
+                <h3 style="color: #2c3e50; margin-bottom: 10px;" id="trackingLeadName"></h3>
+                <p style="color: #7f8c8d; margin: 0;" id="trackingLeadCompany"></p>
+            </div>
+            <div class="seguimiento-section">
+                <h3>➕ Agregar Seguimiento</h3>
+                <div class="add-seguimiento-form">
+                    <input type="date" id="seguimientoDate" required>
+                    <input type="text" id="seguimientoText" placeholder="Descripción del seguimiento..." required>
+                    <button class="btn btn-success" onclick="addSeguimiento()">Agregar</button>
+                </div>
+                <h3>📝 Historial de Seguimientos</h3>
+                <div class="seguimiento-list" id="seguimientoList">
+                    <!-- Seguimientos se cargarán aquí -->
+                </div>
+            </div>
+            <div class="form-actions">
+                <button class="btn btn-secondary" onclick="closeTrackingModal()">Cerrar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal informativo de seguimientos -->
+    <div id="seguimientoInfoModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="seguimientoInfoModalTitle">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="seguimientoInfoModalTitle">📋 Información del Contacto</h2>
+                <button class="close-btn" onclick="closeSeguimientoInfoModal()" aria-label="Cerrar modal">&times;</button>
+            </div>
+            <div id="seguimientoInfoContent">
+                <!-- Contenido se cargará dinámicamente -->
+            </div>
+            <div class="form-actions">
+                <button class="btn btn-secondary" onclick="closeSeguimientoInfoModal()">Cerrar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de facturación de leads convertidos -->
+    <div id="facturacionModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="facturacionModalTitle">
+        <div class="modal-content" style="max-width: 1000px;">
+            <div class="modal-header">
+                <h2 id="facturacionModalTitle">💰 Leads Convertidos</h2>
+                <button class="close-btn" onclick="closeFacturacionModal()" aria-label="Cerrar modal">&times;</button>
+            </div>
+            <div id="facturacionModalContent" style="max-height: 70vh; overflow-y: auto;">
+                <!-- Contenido se cargará dinámicamente -->
+            </div>
+            <div class="form-actions">
+                <button class="btn btn-secondary" onclick="closeFacturacionModal()">Cerrar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal editar fila de prospección -->
+    <div id="prospeccionEditModal" class="modal" role="dialog" aria-modal="true" aria-labelledby="prospeccionEditModalTitle">
+        <div class="modal-content" style="max-width: 700px;">
+            <div class="modal-header">
+                <h2 id="prospeccionEditModalTitle">✏️ Editar fila de prospección</h2>
+                <button class="close-btn" onclick="closeProspeccionEditModal()" aria-label="Cerrar">&times;</button>
+            </div>
+            <form id="prospeccionEditForm" onsubmit="return false;">
+                <div id="prospeccionEditFields" class="form-grid" style="max-height: 60vh; overflow-y: auto;"></div>
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeProspeccionEditModal()">Cancelar</button>
+                    <button type="button" class="btn btn-primary" onclick="saveProspeccionEdit()">Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</body>
+</html>
