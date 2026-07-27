@@ -41,15 +41,15 @@ defineProps({
 .loading-overlay__spinner {
   width: 40px;
   height: 40px;
-  border: 4px solid #d0d3d9;
-  border-top-color: #2d6cdf;
+  border: 4px solid var(--color-borde);
+  border-top-color: var(--color-primario);
   border-radius: 50%;
   animation: girar 0.8s linear infinite;
 }
 
 .loading-overlay__mensaje {
   margin: 0;
-  color: #444;
+  color: var(--color-texto-secundario);
   font-size: 0.9rem;
 }
 

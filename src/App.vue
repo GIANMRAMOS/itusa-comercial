@@ -18,30 +18,63 @@ async function cerrarSesion() {
   <nav v-if="authStore.isAuthenticated" class="barra-navegacion">
     <router-link to="/dashboard">Dashboard</router-link>
     <router-link to="/gestion">Gestión</router-link>
-    <button type="button" @click="cerrarSesion">Cerrar sesión</button>
+    <button type="button" class="barra-navegacion__cerrar-sesion" @click="cerrarSesion">Cerrar sesión</button>
   </nav>
-  <router-view />
+  <div class="contenido-app" :class="{ 'contenido-app--con-nav': authStore.isAuthenticated }">
+    <router-view />
+  </div>
 </template>
 
 <style scoped>
+/* Nota: los media queries no admiten var() como condición, por eso se
+   repite en px el valor de --breakpoint-app-shell (900px). */
+
 .barra-navegacion {
   display: flex;
   align-items: center;
-  gap: 1rem;
-  padding: 0.75rem 1rem;
-  border-bottom: 1px solid #ddd;
+  gap: var(--espacio-4);
+  padding: var(--espacio-3) var(--espacio-4);
+  background: var(--color-fondo);
+  color: var(--color-texto);
+  border-top: 1px solid var(--color-borde);
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
 }
 
 .barra-navegacion a {
   text-decoration: none;
-  color: inherit;
+  color: var(--color-texto-secundario);
 }
 
 .barra-navegacion a.router-link-active {
-  font-weight: bold;
+  color: var(--color-primario);
+  font-weight: 800;
 }
 
-.barra-navegacion button {
+.barra-navegacion__cerrar-sesion {
   margin-left: auto;
+}
+
+/* En pantallas de app-shell (tablet/desktop) la nav pasa a barra horizontal fija arriba */
+@media (min-width: 900px) {
+  .barra-navegacion {
+    position: static;
+    border-top: none;
+    border-bottom: 1px solid var(--color-borde);
+  }
+}
+
+/* Espacio para que el contenido no quede tapado por la barra inferior fija en móvil */
+.contenido-app--con-nav {
+  padding-bottom: calc(var(--espacio-8) + var(--espacio-4));
+}
+
+@media (min-width: 900px) {
+  .contenido-app--con-nav {
+    padding-bottom: 0;
+  }
 }
 </style>

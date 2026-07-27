@@ -85,7 +85,7 @@ function confirmarEliminacion() {
       <ul v-if="seguimientosOrdenados.length > 0" class="seguimientos-modal__lista">
         <li v-for="seguimiento in seguimientosOrdenados" :key="seguimiento.id" class="seguimientos-modal__item">
           <div>
-            <strong>{{ formatearFechaCompleta(seguimiento.fecha) }}</strong>
+            <strong><span class="cifra">{{ formatearFechaCompleta(seguimiento.fecha) }}</span></strong>
             <p class="seguimientos-modal__texto">{{ seguimiento.texto }}</p>
           </div>
           <button
@@ -150,9 +150,9 @@ function confirmarEliminacion() {
   max-height: 85vh;
   overflow-y: auto;
   background: #fff;
-  border-radius: 10px;
+  border-radius: var(--radio-tarjeta);
   padding: 1.5rem;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+  box-shadow: var(--sombra-modal);
 }
 
 .seguimientos-modal__titulo {
@@ -175,7 +175,7 @@ function confirmarEliminacion() {
   align-items: flex-start;
   gap: 0.6rem;
   padding: 0.6rem;
-  border: 1px solid #eef0f3;
+  border: 1px solid var(--color-borde);
   border-radius: 6px;
   font-size: 0.85rem;
 }
@@ -202,7 +202,7 @@ function confirmarEliminacion() {
 }
 
 .seguimientos-modal__form {
-  border-top: 1px solid #eef0f3;
+  border-top: 1px solid var(--color-borde);
   padding-top: 1rem;
 }
 
@@ -217,15 +217,22 @@ function confirmarEliminacion() {
 .seguimientos-modal__campo input,
 .seguimientos-modal__campo textarea {
   padding: 0.45rem 0.6rem;
-  border: 1px solid #d0d3d9;
+  border: 1px solid var(--color-borde);
   border-radius: 6px;
   font-size: 0.9rem;
   font-family: inherit;
 }
 
+.seguimientos-modal__campo input:focus,
+.seguimientos-modal__campo textarea:focus {
+  border-color: var(--color-borde-foco);
+  box-shadow: var(--sombra-foco);
+  outline: none;
+}
+
 .seguimientos-modal__error {
   margin: 0 0 0.75rem;
-  color: #c0392b;
+  color: var(--color-error);
   font-size: 0.85rem;
 }
 
@@ -247,8 +254,12 @@ function confirmarEliminacion() {
   padding: 0.55rem 1rem;
   border: none;
   border-radius: 6px;
-  background: #2d6cdf;
+  background: var(--color-primario);
   color: #fff;
   cursor: pointer;
+}
+
+.seguimientos-modal__boton-agregar:hover {
+  background: var(--color-primario-hover);
 }
 </style>

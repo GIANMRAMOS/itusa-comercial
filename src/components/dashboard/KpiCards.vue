@@ -10,31 +10,31 @@ defineProps({
 <template>
   <div class="kpi-cards">
     <div class="kpi-card">
-      <span class="kpi-card__valor">{{ kpis.totalLeads }}</span>
+      <span class="kpi-card__valor cifra">{{ kpis.totalLeads }}</span>
       <span class="kpi-card__etiqueta">Total leads</span>
     </div>
     <div class="kpi-card">
-      <span class="kpi-card__valor">{{ kpis.calificados }}</span>
+      <span class="kpi-card__valor cifra">{{ kpis.calificados }}</span>
       <span class="kpi-card__etiqueta">Calificados</span>
     </div>
     <div class="kpi-card">
-      <span class="kpi-card__valor">{{ kpis.visitas }}</span>
+      <span class="kpi-card__valor cifra">{{ kpis.visitas }}</span>
       <span class="kpi-card__etiqueta">Visitas</span>
     </div>
     <div class="kpi-card">
-      <span class="kpi-card__valor">{{ kpis.conversiones }}</span>
+      <span class="kpi-card__valor cifra">{{ kpis.conversiones }}</span>
       <span class="kpi-card__etiqueta">Conversiones</span>
     </div>
     <div class="kpi-card">
-      <span class="kpi-card__valor">{{ kpis.porcentajeConversion }}%</span>
+      <span class="kpi-card__valor cifra">{{ kpis.porcentajeConversion }}%</span>
       <span class="kpi-card__etiqueta">% Conversión</span>
     </div>
     <div class="kpi-card">
-      <span class="kpi-card__valor">{{ kpis.diasPromedioConversion }}</span>
+      <span class="kpi-card__valor cifra">{{ kpis.diasPromedioConversion }}</span>
       <span class="kpi-card__etiqueta">Días promedio de conversión</span>
     </div>
-    <div class="kpi-card">
-      <span class="kpi-card__valor">${{ kpis.totalFacturado.toLocaleString('es') }}</span>
+    <div class="kpi-card kpi-card--destacada">
+      <span class="kpi-card__valor cifra">${{ kpis.totalFacturado.toLocaleString('es') }}</span>
       <span class="kpi-card__etiqueta">Total facturado</span>
     </div>
   </div>
@@ -52,9 +52,20 @@ defineProps({
   flex-direction: column;
   align-items: center;
   padding: 1rem;
-  background: #fff;
-  border-radius: 8px;
+  background: var(--color-fondo);
+  border: 1px solid var(--color-borde-tarjeta);
+  border-radius: var(--radio-tarjeta);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.kpi-card--destacada {
+  background: var(--color-primario);
+  border-color: var(--color-primario);
+}
+
+.kpi-card--destacada .kpi-card__valor,
+.kpi-card--destacada .kpi-card__etiqueta {
+  color: #ffffff;
 }
 
 .kpi-card__valor {

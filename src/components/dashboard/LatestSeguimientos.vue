@@ -18,7 +18,7 @@ defineProps({
       >
         <div class="ultimos-seguimientos__cabecera">
           <span class="ultimos-seguimientos__contacto">{{ seguimiento.contact }} · {{ seguimiento.company }}</span>
-          <span class="ultimos-seguimientos__fecha">{{ seguimiento.fecha }}</span>
+          <span class="ultimos-seguimientos__fecha cifra">{{ seguimiento.fecha }}</span>
         </div>
         <p class="ultimos-seguimientos__texto">{{ seguimiento.texto }}</p>
       </li>
@@ -30,7 +30,8 @@ defineProps({
 <style scoped>
 .ultimos-seguimientos {
   background: #fff;
-  border-radius: 8px;
+  border-radius: var(--radio-tarjeta);
+  border: 1px solid var(--color-borde-tarjeta);
   padding: 1rem;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
@@ -49,7 +50,7 @@ defineProps({
 }
 
 .ultimos-seguimientos__item {
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid var(--color-borde-tarjeta);
   padding-bottom: 0.75rem;
 }
 

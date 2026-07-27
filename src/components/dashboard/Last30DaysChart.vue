@@ -18,8 +18,8 @@ const chartData = computed(() => ({
     {
       label: 'Leads por día',
       data: props.datos.map((item) => item.cantidad),
-      borderColor: '#16a34a',
-      backgroundColor: 'rgba(22, 163, 74, 0.15)',
+      borderColor: '#3a9d6b',
+      backgroundColor: 'rgba(58, 157, 107, 0.15)',
       tension: 0.3,
       fill: true,
     },
@@ -46,8 +46,9 @@ const chartOptions = {
 
 <style scoped>
 .ultimos-30-dias {
-  background: #fff;
-  border-radius: 8px;
+  background: var(--color-fondo);
+  border-radius: var(--radio-tarjeta);
+  border: 1px solid var(--color-borde-tarjeta);
   padding: 1rem;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }

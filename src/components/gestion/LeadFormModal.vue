@@ -237,9 +237,9 @@ function enviarFormulario() {
   max-height: 90vh;
   overflow-y: auto;
   background: #fff;
-  border-radius: 10px;
+  border-radius: var(--radio-tarjeta);
   padding: 1.5rem;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+  box-shadow: var(--sombra-modal);
 }
 
 .lead-form-modal__titulo {
@@ -262,12 +262,21 @@ function enviarFormulario() {
 }
 
 .lead-form-modal__campo input,
-.lead-form-modal__campo textarea {
+.lead-form-modal__campo textarea,
+.lead-form-modal__campo select {
   padding: 0.45rem 0.6rem;
-  border: 1px solid #d0d3d9;
+  border: 1px solid var(--color-borde);
   border-radius: 6px;
   font-size: 0.9rem;
   font-family: inherit;
+}
+
+.lead-form-modal__campo input:focus,
+.lead-form-modal__campo textarea:focus,
+.lead-form-modal__campo select:focus {
+  border-color: var(--color-borde-foco);
+  box-shadow: var(--sombra-foco);
+  outline: none;
 }
 
 .lead-form-modal__campo--checkbox {
@@ -282,7 +291,7 @@ function enviarFormulario() {
 
 .lead-form-modal__error {
   margin: 0 0 0.85rem;
-  color: #c0392b;
+  color: var(--color-error);
   font-size: 0.85rem;
 }
 
@@ -304,8 +313,12 @@ function enviarFormulario() {
   padding: 0.55rem 1rem;
   border: none;
   border-radius: 6px;
-  background: #2d6cdf;
+  background: var(--color-primario);
   color: #fff;
   cursor: pointer;
+}
+
+.lead-form-modal__boton-guardar:hover {
+  background: var(--color-primario-hover);
 }
 </style>

@@ -59,7 +59,7 @@ async function enviarLogin() {
   align-items: center;
   justify-content: center;
   min-height: 100vh;
-  background: #f4f5f7;
+  background: var(--color-fondo-app);
 }
 
 .login-view__form {
@@ -67,11 +67,11 @@ async function enviarLogin() {
   flex-direction: column;
   gap: 1rem;
   width: 100%;
-  max-width: 360px;
+  max-width: var(--ancho-maximo-formulario);
   padding: 2rem;
-  background: #fff;
-  border-radius: 8px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+  background: var(--color-fondo);
+  border: 1px solid var(--color-borde-tarjeta);
+  border-radius: var(--radio-tarjeta);
 }
 
 .login-view__titulo {
@@ -89,25 +89,35 @@ async function enviarLogin() {
 
 .login-view__campo input {
   padding: 0.5rem 0.65rem;
-  border: 1px solid #d0d3d9;
-  border-radius: 6px;
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio-borde);
   font-size: 0.95rem;
+}
+
+.login-view__campo input:focus {
+  border-color: var(--color-borde-foco);
+  box-shadow: var(--sombra-foco);
+  outline: none;
 }
 
 .login-view__error {
   margin: 0;
-  color: #c0392b;
+  color: var(--color-error);
   font-size: 0.85rem;
 }
 
 .login-view__boton {
   padding: 0.65rem;
   border: none;
-  border-radius: 6px;
-  background: #2d6cdf;
+  border-radius: var(--radio-borde);
+  background: var(--color-primario);
   color: #fff;
   font-size: 0.95rem;
   cursor: pointer;
+}
+
+.login-view__boton:hover:not(:disabled) {
+  background: var(--color-primario-hover);
 }
 
 .login-view__boton:disabled {

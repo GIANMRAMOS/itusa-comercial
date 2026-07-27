@@ -65,9 +65,9 @@ const emit = defineEmits(['confirm', 'cancel'])
   width: 100%;
   max-width: 360px;
   padding: 1.5rem;
-  background: #fff;
-  border-radius: 8px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  background: var(--color-fondo);
+  border-radius: var(--radio-tarjeta);
+  box-shadow: var(--sombra-modal);
 }
 
 .confirm-dialog__titulo {
@@ -77,7 +77,7 @@ const emit = defineEmits(['confirm', 'cancel'])
 
 .confirm-dialog__mensaje {
   margin: 0 0 1.25rem;
-  color: #444;
+  color: var(--color-texto-secundario);
   font-size: 0.9rem;
 }
 
@@ -96,12 +96,14 @@ const emit = defineEmits(['confirm', 'cancel'])
 }
 
 .confirm-dialog__boton--cancelar {
-  background: #e9ebef;
-  color: #333;
+  background: var(--color-fondo);
+  border: 1px solid var(--color-borde);
+  color: var(--color-texto);
 }
 
 .confirm-dialog__boton--confirmar {
-  background: #c0392b;
+  background: var(--color-error);
+  border: 1px solid var(--color-error);
   color: #fff;
 }
 </style>

@@ -55,4 +55,52 @@ describe('KpiCards', () => {
 
     expect(wrapper.text()).toContain('99')
   })
+
+  it('aplica la clase .cifra a los 7 valores de KPI', () => {
+    const kpis = {
+      totalLeads: 10,
+      calificados: 5,
+      visitas: 3,
+      conversiones: 2,
+      porcentajeConversion: 20,
+      diasPromedioConversion: 15,
+      totalFacturado: 500,
+    }
+
+    const wrapper = mount(KpiCards, { props: { kpis } })
+    const cifras = wrapper.findAll('.cifra')
+
+    expect(cifras.length).toBe(7)
+    cifras.forEach((cifra) => {
+      expect(cifra.classes()).toContain('kpi-card__valor')
+    })
+  })
+
+  it('marca solo la tarjeta de Total facturado como destacada', () => {
+    const kpis = {
+      totalLeads: 10,
+      calificados: 5,
+      visitas: 3,
+      conversiones: 2,
+      porcentajeConversion: 20,
+      diasPromedioConversion: 15,
+      totalFacturado: 500,
+    }
+
+    const wrapper = mount(KpiCards, { props: { kpis } })
+    const tarjetas = wrapper.findAll('.kpi-card')
+
+    expect(tarjetas.length).toBe(7)
+
+    const destacadas = tarjetas.filter((tarjeta) => tarjeta.classes().includes('kpi-card--destacada'))
+    expect(destacadas.length).toBe(1)
+
+    const ultima = tarjetas[tarjetas.length - 1]
+    expect(ultima.classes()).toContain('kpi-card--destacada')
+    expect(ultima.text()).toContain('Total facturado')
+
+    tarjetas.slice(0, 6).forEach((tarjeta) => {
+      expect(tarjeta.classes()).not.toContain('kpi-card--destacada')
+    })
+  })
 })

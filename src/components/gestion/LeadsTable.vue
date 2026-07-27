@@ -107,20 +107,20 @@ function seguimientosOrdenados(lead) {
                   {{ leadExpandidoId === lead.id ? '−' : '+' }}
                 </button>
               </td>
-              <td>{{ lead.source || '—' }}</td>
-              <td>{{ lead.contact || '—' }}</td>
-              <td>{{ lead.company || '—' }}</td>
-              <td>{{ lead.email || '—' }}</td>
-              <td>{{ lead.phone || '—' }}</td>
-              <td>{{ formatearFechaCompleta(lead.created_at) }}</td>
-              <td>
+              <td data-label="Fuente">{{ lead.source || '—' }}</td>
+              <td data-label="Contacto">{{ lead.contact || '—' }}</td>
+              <td data-label="Empresa">{{ lead.company || '—' }}</td>
+              <td data-label="Correo">{{ lead.email || '—' }}</td>
+              <td data-label="Teléfono">{{ lead.phone || '—' }}</td>
+              <td data-label="Creación"><span class="cifra">{{ formatearFechaCompleta(lead.created_at) }}</span></td>
+              <td data-label="Estado">
                 <span class="leads-table__estado" :class="`leads-table__estado--${getStatus(lead)}`">
                   {{ getStatus(lead) }}
                 </span>
               </td>
-              <td>{{ formatearFactura(lead.factura) }}</td>
-              <td>{{ getDaysInProcess(lead) }}</td>
-              <td class="leads-table__acciones leads-table__col-derecha">
+              <td data-label="Factura"><span class="cifra" :class="{ 'cifra--ingreso': lead.factura }">{{ formatearFactura(lead.factura) }}</span></td>
+              <td data-label="Días en proceso"><span class="cifra">{{ getDaysInProcess(lead) }}</span></td>
+              <td data-label="Acciones" class="leads-table__acciones leads-table__col-derecha">
                 <button type="button" @click="emit('editar-lead', lead)">Editar</button>
                 <button type="button" @click="emit('abrir-seguimientos', lead)">Seguimientos</button>
                 <button type="button" class="leads-table__boton-eliminar" @click="emit('eliminar-lead', lead)">
@@ -154,6 +154,10 @@ function seguimientosOrdenados(lead) {
 </template>
 
 <style scoped>
+/* Nota: los media queries no admiten var() como condición, por eso se repite
+   en px el valor de --breakpoint-tabla (640px). El rango 640-900px conserva
+   intacto el tratamiento sticky de las columnas izquierda/derecha. */
+
 .leads-table__barra {
   margin-bottom: 1rem;
 }
@@ -162,8 +166,8 @@ function seguimientosOrdenados(lead) {
   width: 100%;
   max-width: 320px;
   padding: 0.5rem 0.75rem;
-  border: 1px solid #d0d3d9;
-  border-radius: 6px;
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio-borde);
   font-size: 0.9rem;
 }
 
@@ -208,8 +212,8 @@ function seguimientosOrdenados(lead) {
 .leads-table__boton-expandir {
   width: 1.6rem;
   height: 1.6rem;
-  border: 1px solid #d0d3d9;
-  border-radius: 4px;
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio-borde);
   background: #f8f9fb;
   cursor: pointer;
 }
@@ -223,18 +227,18 @@ function seguimientosOrdenados(lead) {
 }
 
 .leads-table__estado--convertido {
-  background: #d7f5df;
-  color: #1e7a3d;
+  background: var(--color-exito-fondo);
+  color: var(--color-exito);
 }
 
 .leads-table__estado--rechazado {
-  background: #fbe0de;
-  color: #a83a2f;
+  background: var(--color-error-fondo);
+  color: var(--color-error);
 }
 
 .leads-table__estado--proceso {
-  background: #fdf1d6;
-  color: #96700d;
+  background: var(--color-advertencia-fondo);
+  color: var(--color-advertencia);
 }
 
 .leads-table__acciones {
@@ -245,8 +249,8 @@ function seguimientosOrdenados(lead) {
 
 .leads-table__acciones button {
   padding: 0.3rem 0.55rem;
-  border: 1px solid #d0d3d9;
-  border-radius: 6px;
+  border: 1px solid var(--color-borde);
+  border-radius: var(--radio-borde);
   background: #fff;
   font-size: 0.8rem;
   cursor: pointer;
@@ -287,5 +291,96 @@ function seguimientosOrdenados(lead) {
   text-align: center;
   color: #6b7280;
   padding: 1.25rem;
+}
+
+/* Colapso a tarjetas por debajo de --breakpoint-tabla (640px).
+   El rango 640-900px arriba no se toca: mantiene el scroll horizontal + sticky. */
+@media (max-width: 639px) {
+  .leads-table__tabla,
+  .leads-table__tabla tbody,
+  .leads-table__tabla tr {
+    display: block;
+    width: 100%;
+  }
+
+  .leads-table__tabla thead {
+    display: none;
+  }
+
+  .leads-table__tabla td {
+    display: block;
+    width: 100%;
+    padding: var(--espacio-2) var(--espacio-3);
+    border-bottom: 1px solid var(--color-borde-tarjeta);
+    text-align: left;
+    white-space: normal;
+  }
+
+  .leads-table__tabla td:last-child {
+    border-bottom: none;
+  }
+
+  .leads-table__tabla td::before {
+    content: attr(data-label);
+    display: block;
+    font-weight: 600;
+    font-size: var(--tamano-pequeno);
+    color: var(--color-texto-secundario);
+    margin-bottom: var(--espacio-1);
+  }
+
+  /* La columna izquierda/derecha pierde el comportamiento sticky en modo tarjeta */
+  .leads-table__col-izquierda,
+  .leads-table__col-derecha {
+    position: static;
+    box-shadow: none;
+    background: transparent;
+  }
+
+  /* El botón de expandir no tiene data-label: se omite la etiqueta vacía */
+  .leads-table__col-izquierda::before {
+    content: none;
+  }
+
+  .leads-table__fila {
+    border: 1px solid var(--color-borde-tarjeta);
+    border-radius: var(--radio-tarjeta);
+    margin-bottom: var(--espacio-4);
+    padding: var(--espacio-2) 0;
+    background: var(--color-fondo);
+  }
+
+  /* Cuando la fila tiene seguimientos expandidos, se pega visualmente a la tarjeta siguiente */
+  .leads-table__fila:has(+ .leads-table__fila-expandida) {
+    margin-bottom: 0;
+    border-bottom: none;
+    border-radius: var(--radio-tarjeta) var(--radio-tarjeta) 0 0;
+  }
+
+  .leads-table__fila-expandida {
+    border: 1px solid var(--color-borde-tarjeta);
+    border-top: none;
+    border-radius: 0 0 var(--radio-tarjeta) var(--radio-tarjeta);
+    margin-bottom: var(--espacio-4);
+  }
+
+  .leads-table__fila-expandida td {
+    padding: var(--espacio-3);
+    border-bottom: none;
+  }
+
+  .leads-table__fila-expandida td::before {
+    content: none;
+  }
+
+  .leads-table__fila .leads-table__acciones {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--espacio-2);
+  }
+
+  .leads-table__sin-resultados {
+    display: block;
+  }
 }
 </style>

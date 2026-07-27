@@ -13,7 +13,7 @@ defineProps({
     <ol v-if="ranking.length" class="ranking-fuentes__lista">
       <li v-for="item in ranking" :key="item.source" class="ranking-fuentes__item">
         <span class="ranking-fuentes__nombre">{{ item.source }}</span>
-        <span class="ranking-fuentes__cantidad">{{ item.cantidad }}</span>
+        <span class="ranking-fuentes__cantidad cifra">{{ item.cantidad }}</span>
       </li>
     </ol>
     <p v-else class="ranking-fuentes__vacio">Sin datos de fuentes todavía.</p>
@@ -23,7 +23,8 @@ defineProps({
 <style scoped>
 .ranking-fuentes {
   background: #fff;
-  border-radius: 8px;
+  border-radius: var(--radio-tarjeta);
+  border: 1px solid var(--color-borde-tarjeta);
   padding: 1rem;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
@@ -48,7 +49,7 @@ defineProps({
 
 .ranking-fuentes__cantidad {
   font-weight: 600;
-  color: #2563eb;
+  color: var(--color-primario);
 }
 
 .ranking-fuentes__vacio {

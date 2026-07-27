@@ -5,3 +5,5 @@ dist
 
 # Config local de Claude Code (permisos), no compartir
 .claude/settings.local.json
+.vercel
+.env*

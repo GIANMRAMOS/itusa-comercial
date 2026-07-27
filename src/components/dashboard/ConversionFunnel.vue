@@ -14,13 +14,14 @@ defineProps({
       <li v-for="paso in funnel" :key="paso.nombre" class="embudo__paso">
         <div class="embudo__cabecera">
           <span class="embudo__nombre">{{ paso.nombre }}</span>
-          <span class="embudo__valor">{{ paso.valor }}</span>
+          <span class="embudo__valor cifra">{{ paso.valor }}</span>
         </div>
         <div class="embudo__barra">
           <div class="embudo__barra-relleno" :style="{ width: `${paso.porcentajeDelTotal}%` }" />
         </div>
         <span class="embudo__detalle">
-          {{ paso.porcentajeDelTotal }}% del total · {{ paso.porcentajeDelAnterior }}% del paso anterior
+          <span class="cifra">{{ paso.porcentajeDelTotal }}%</span> del total ·
+          <span class="cifra">{{ paso.porcentajeDelAnterior }}%</span> del paso anterior
         </span>
       </li>
     </ul>
@@ -30,7 +31,8 @@ defineProps({
 <style scoped>
 .embudo {
   background: #fff;
-  border-radius: 8px;
+  border-radius: var(--radio-tarjeta);
+  border: 1px solid var(--color-borde-tarjeta);
   padding: 1rem;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
@@ -62,7 +64,7 @@ defineProps({
 }
 
 .embudo__barra-relleno {
-  background: #2563eb;
+  background: var(--color-primario);
   height: 100%;
 }
 

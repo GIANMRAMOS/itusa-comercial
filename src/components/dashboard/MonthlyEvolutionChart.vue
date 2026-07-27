@@ -18,7 +18,7 @@ const chartData = computed(() => ({
     {
       label: 'Leads por mes',
       data: props.evolucion.map((item) => item.cantidad),
-      backgroundColor: '#2563eb',
+      backgroundColor: '#1a1a18',
     },
   ],
 }))
@@ -43,8 +43,9 @@ const chartOptions = {
 
 <style scoped>
 .evolucion-mensual {
-  background: #fff;
-  border-radius: 8px;
+  background: var(--color-fondo);
+  border-radius: var(--radio-tarjeta);
+  border: 1px solid var(--color-borde-tarjeta);
   padding: 1rem;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
