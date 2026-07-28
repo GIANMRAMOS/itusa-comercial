@@ -168,7 +168,7 @@ describe('LeadsTable', () => {
   })
 
   describe('conteo del título de seguimientos', () => {
-    it('con 3 seguimientos, el título dice "Historial de seguimientos (3)"', async () => {
+    it('con 3 seguimientos, el título dice "Historial de seguimientos" y el contador muestra "3"', async () => {
       const lead = crearLead({
         seguimientos: [
           { id: 1, fecha: '2024-01-01T00:00:00.000Z', texto: 'Primero' },
@@ -181,27 +181,42 @@ describe('LeadsTable', () => {
       await wrapper.find('.leads-table__boton-expandir').trigger('click')
 
       const titulo = wrapper.find('.leads-table__historial-titulo')
-      expect(titulo.text()).toContain('Historial de seguimientos (3)')
+      expect(titulo.text()).toBe('Historial de seguimientos')
+      const contador = wrapper.find('.leads-table__historial-contador')
+      expect(contador.text()).toBe('3')
     })
 
-    it('sin seguimientos (array vacío), el título dice "Historial de seguimientos (0)"', async () => {
+    it('sin seguimientos (array vacío), el contador muestra "0"', async () => {
       const wrapper = mount(LeadsTable, { props: { leads: [crearLead({ seguimientos: [] })] } })
 
       await wrapper.find('.leads-table__boton-expandir').trigger('click')
 
-      const titulo = wrapper.find('.leads-table__historial-titulo')
-      expect(titulo.text()).toContain('Historial de seguimientos (0)')
+      const contador = wrapper.find('.leads-table__historial-contador')
+      expect(contador.text()).toBe('0')
     })
 
-    it('sin seguimientos (undefined), el título dice "Historial de seguimientos (0)"', async () => {
+    it('sin seguimientos (undefined), el contador muestra "0"', async () => {
       const lead = crearLead()
       delete lead.seguimientos
       const wrapper = mount(LeadsTable, { props: { leads: [lead] } })
 
       await wrapper.find('.leads-table__boton-expandir').trigger('click')
 
-      const titulo = wrapper.find('.leads-table__historial-titulo')
-      expect(titulo.text()).toContain('Historial de seguimientos (0)')
+      const contador = wrapper.find('.leads-table__historial-contador')
+      expect(contador.text()).toBe('0')
+    })
+  })
+
+  describe('agrupación del contador y el botón de agregar seguimiento', () => {
+    it('el contador y el botón están ambos dentro de la cabecera del historial, junto al título', async () => {
+      const wrapper = mount(LeadsTable, { props: { leads: [crearLead()] } })
+
+      await wrapper.find('.leads-table__boton-expandir').trigger('click')
+
+      const cabecera = wrapper.find('.leads-table__historial-cabecera')
+      expect(cabecera.find('.leads-table__historial-titulo').exists()).toBe(true)
+      expect(cabecera.find('.leads-table__historial-contador').exists()).toBe(true)
+      expect(cabecera.find('.leads-table__boton-icono').exists()).toBe(true)
     })
   })
 

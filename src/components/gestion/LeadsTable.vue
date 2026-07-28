@@ -159,16 +159,15 @@ function inicial(lead) {
               <td colspan="11">
                 <div class="leads-table__historial">
                   <div class="leads-table__historial-cabecera">
-                    <h3 class="leads-table__historial-titulo">
-                      Historial de seguimientos ({{ seguimientosOrdenados(lead).length }})
-                    </h3>
+                    <h3 class="leads-table__historial-titulo">Historial de seguimientos</h3>
+                    <span class="leads-table__historial-contador">{{ seguimientosOrdenados(lead).length }}</span>
                     <button
                       type="button"
                       class="leads-table__boton-icono"
                       aria-label="Agregar seguimiento"
                       @click="emit('abrir-seguimientos', lead)"
                     >
-                      <svg viewBox="0 0 20 20" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                         <path d="M3 4.5A1.5 1.5 0 014.5 3h8A1.5 1.5 0 0114 4.5v6a1.5 1.5 0 01-1.5 1.5H7l-3 3v-3H4.5A1.5 1.5 0 013 10.5v-6z" />
                         <path d="M6.5 6.5h4M6.5 8.5h2.5" />
                       </svg>
@@ -358,7 +357,6 @@ function inicial(lead) {
 .leads-table__historial-cabecera {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: var(--espacio-2);
   margin-bottom: 0.5rem;
 }
@@ -366,6 +364,20 @@ function inicial(lead) {
 .leads-table__historial-titulo {
   margin: 0;
   font-size: 0.9rem;
+}
+
+.leads-table__historial-contador {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.4rem;
+  height: 1.4rem;
+  padding: 0 0.4rem;
+  border-radius: 999px;
+  background: var(--color-borde-tarjeta);
+  color: var(--color-texto-secundario);
+  font-size: 0.75rem;
+  font-weight: 600;
 }
 
 .leads-table__historial-vacio {
