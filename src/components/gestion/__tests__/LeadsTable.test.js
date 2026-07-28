@@ -100,4 +100,126 @@ describe('LeadsTable', () => {
     expect(sinResultados.exists()).toBe(true)
     expect(sinResultados.text()).toContain('No hay leads que coincidan con la búsqueda.')
   })
+
+  describe('aria-labels de accesibilidad', () => {
+    it('el botón Editar tiene aria-label no vacío con "Editar" y el nombre del contacto', () => {
+      const wrapper = mount(LeadsTable, { props: { leads: [crearLead({ contact: 'Juan Pérez' })] } })
+
+      const botonEditar = wrapper.find('.leads-table__acciones .leads-table__boton-icono:not(.leads-table__boton-eliminar)')
+      expect(botonEditar.exists()).toBe(true)
+      const ariaLabel = botonEditar.attributes('aria-label')
+      expect(ariaLabel.trim().length).toBeGreaterThan(0)
+      expect(ariaLabel).toContain('Editar')
+      expect(ariaLabel).toContain('Juan Pérez')
+    })
+
+    it('el botón Eliminar tiene aria-label no vacío con "Eliminar" y el nombre del contacto', () => {
+      const wrapper = mount(LeadsTable, { props: { leads: [crearLead({ contact: 'Juan Pérez' })] } })
+
+      const botonEliminar = wrapper.find('.leads-table__acciones .leads-table__boton-eliminar')
+      expect(botonEliminar.exists()).toBe(true)
+      const ariaLabel = botonEliminar.attributes('aria-label')
+      expect(ariaLabel.trim().length).toBeGreaterThan(0)
+      expect(ariaLabel).toContain('Eliminar')
+      expect(ariaLabel).toContain('Juan Pérez')
+    })
+
+    it('el botón de agregar seguimiento del panel expandido tiene aria-label="Agregar seguimiento"', async () => {
+      const wrapper = mount(LeadsTable, { props: { leads: [crearLead()] } })
+
+      await wrapper.find('.leads-table__boton-expandir').trigger('click')
+
+      const botonSeguimiento = wrapper.find('.leads-table__historial-cabecera .leads-table__boton-icono')
+      expect(botonSeguimiento.exists()).toBe(true)
+      expect(botonSeguimiento.attributes('aria-label')).toBe('Agregar seguimiento')
+    })
+  })
+
+  describe('reubicación del disparador de abrir-seguimientos', () => {
+    it('con la fila colapsada, Acciones tiene exactamente 2 botones y no dispara abrir-seguimientos', async () => {
+      const wrapper = mount(LeadsTable, { props: { leads: [crearLead()] } })
+
+      const botonesAcciones = wrapper.find('.leads-table__acciones').findAll('button')
+      expect(botonesAcciones.length).toBe(2)
+
+      for (const boton of botonesAcciones) {
+        await boton.trigger('click')
+      }
+
+      expect(wrapper.emitted('abrir-seguimientos')).toBeUndefined()
+    })
+
+    it('al expandir, el botón "Agregar seguimiento" del panel emite abrir-seguimientos con el lead completo', async () => {
+      const lead = crearLead()
+      const wrapper = mount(LeadsTable, { props: { leads: [lead] } })
+
+      await wrapper.find('.leads-table__boton-expandir').trigger('click')
+
+      const botonSeguimiento = wrapper.find('.leads-table__historial-cabecera .leads-table__boton-icono')
+      expect(botonSeguimiento.exists()).toBe(true)
+
+      await botonSeguimiento.trigger('click')
+
+      const emitido = wrapper.emitted('abrir-seguimientos')
+      expect(emitido).toBeTruthy()
+      expect(emitido.length).toBe(1)
+      expect(emitido[0][0]).toEqual(lead)
+    })
+  })
+
+  describe('conteo del título de seguimientos', () => {
+    it('con 3 seguimientos, el título dice "Historial de seguimientos (3)"', async () => {
+      const lead = crearLead({
+        seguimientos: [
+          { id: 1, fecha: '2024-01-01T00:00:00.000Z', texto: 'Primero' },
+          { id: 2, fecha: '2024-01-02T00:00:00.000Z', texto: 'Segundo' },
+          { id: 3, fecha: '2024-01-03T00:00:00.000Z', texto: 'Tercero' },
+        ],
+      })
+      const wrapper = mount(LeadsTable, { props: { leads: [lead] } })
+
+      await wrapper.find('.leads-table__boton-expandir').trigger('click')
+
+      const titulo = wrapper.find('.leads-table__historial-titulo')
+      expect(titulo.text()).toContain('Historial de seguimientos (3)')
+    })
+
+    it('sin seguimientos (array vacío), el título dice "Historial de seguimientos (0)"', async () => {
+      const wrapper = mount(LeadsTable, { props: { leads: [crearLead({ seguimientos: [] })] } })
+
+      await wrapper.find('.leads-table__boton-expandir').trigger('click')
+
+      const titulo = wrapper.find('.leads-table__historial-titulo')
+      expect(titulo.text()).toContain('Historial de seguimientos (0)')
+    })
+
+    it('sin seguimientos (undefined), el título dice "Historial de seguimientos (0)"', async () => {
+      const lead = crearLead()
+      delete lead.seguimientos
+      const wrapper = mount(LeadsTable, { props: { leads: [lead] } })
+
+      await wrapper.find('.leads-table__boton-expandir').trigger('click')
+
+      const titulo = wrapper.find('.leads-table__historial-titulo')
+      expect(titulo.text()).toContain('Historial de seguimientos (0)')
+    })
+  })
+
+  describe('franja de color izquierda por estado', () => {
+    it('mapea conversion_at / rechazo_at / ninguno a las 3 clases de fila correctas', () => {
+      const leadConvertido = crearLead({ id: 1, contact: 'Convertido', conversion_at: '2024-02-01T00:00:00.000Z' })
+      const leadRechazado = crearLead({ id: 2, contact: 'Rechazado', rechazo_at: '2024-02-01T00:00:00.000Z' })
+      const leadEnProceso = crearLead({ id: 3, contact: 'EnProceso' })
+
+      const wrapper = mount(LeadsTable, {
+        props: { leads: [leadConvertido, leadRechazado, leadEnProceso] },
+      })
+
+      const filas = wrapper.findAll('.leads-table__fila')
+      expect(filas.length).toBe(3)
+      expect(filas[0].classes()).toContain('leads-table__fila--convertido')
+      expect(filas[1].classes()).toContain('leads-table__fila--rechazado')
+      expect(filas[2].classes()).toContain('leads-table__fila--proceso')
+    })
+  })
 })

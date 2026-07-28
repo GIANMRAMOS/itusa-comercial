@@ -64,6 +64,11 @@ function seguimientosOrdenados(lead) {
     return fechaB.getTime() - fechaA.getTime()
   })
 }
+
+// Inicial del contacto para el avatar; con fallback cuando no hay nombre
+function inicial(lead) {
+  return (lead.contact || '').trim().charAt(0).toUpperCase() || '?'
+}
 </script>
 
 <template>
@@ -96,19 +101,26 @@ function seguimientosOrdenados(lead) {
         </thead>
         <tbody>
           <template v-for="lead in leadsFiltrados" :key="lead.id">
-            <tr class="leads-table__fila">
+            <tr class="leads-table__fila" :class="`leads-table__fila--${getStatus(lead)}`">
               <td class="leads-table__col-izquierda">
                 <button
                   type="button"
                   class="leads-table__boton-expandir"
+                  :class="{ 'leads-table__boton-expandir--abierto': leadExpandidoId === lead.id }"
                   :aria-expanded="leadExpandidoId === lead.id"
+                  :aria-label="leadExpandidoId === lead.id ? 'Contraer detalle del lead' : 'Expandir detalle del lead'"
                   @click="alternarExpandido(lead.id)"
                 >
-                  {{ leadExpandidoId === lead.id ? '−' : '+' }}
+                  <svg viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M7 4l6 6-6 6" />
+                  </svg>
                 </button>
               </td>
               <td data-label="Fuente">{{ lead.source || '—' }}</td>
-              <td data-label="Contacto">{{ lead.contact || '—' }}</td>
+              <td data-label="Contacto">
+                <span class="leads-table__avatar" aria-hidden="true">{{ inicial(lead) }}</span>
+                <span class="leads-table__nombre-contacto">{{ lead.contact || '—' }}</span>
+              </td>
               <td data-label="Empresa">{{ lead.company || '—' }}</td>
               <td data-label="Correo">{{ lead.email || '—' }}</td>
               <td data-label="Teléfono">{{ lead.phone || '—' }}</td>
@@ -121,23 +133,53 @@ function seguimientosOrdenados(lead) {
               <td data-label="Factura"><span class="cifra" :class="{ 'cifra--ingreso': lead.factura }">{{ formatearFactura(lead.factura) }}</span></td>
               <td data-label="Días en proceso"><span class="cifra">{{ getDaysInProcess(lead) }}</span></td>
               <td data-label="Acciones" class="leads-table__acciones leads-table__col-derecha">
-                <button type="button" @click="emit('editar-lead', lead)">Editar</button>
-                <button type="button" @click="emit('abrir-seguimientos', lead)">Seguimientos</button>
-                <button type="button" class="leads-table__boton-eliminar" @click="emit('eliminar-lead', lead)">
-                  Eliminar
+                <button
+                  type="button"
+                  class="leads-table__boton-icono"
+                  :aria-label="`Editar lead de ${lead.contact || 'este lead'}`"
+                  @click="emit('editar-lead', lead)"
+                >
+                  <svg viewBox="0 0 20 20" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M13.5 3.5l3 3L6 17H3v-3L13.5 3.5z" />
+                  </svg>
+                </button>
+                <button
+                  type="button"
+                  class="leads-table__boton-icono leads-table__boton-eliminar"
+                  :aria-label="`Eliminar lead de ${lead.contact || 'este lead'}`"
+                  @click="emit('eliminar-lead', lead)"
+                >
+                  <svg viewBox="0 0 20 20" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M4 6h12M8 6V4.5A1.5 1.5 0 019.5 3h1A1.5 1.5 0 0112 4.5V6m-6.5 0l.6 9.4A1.5 1.5 0 007.6 17h4.8a1.5 1.5 0 001.5-1.6L14.5 6M8.5 9v5M11.5 9v5" />
+                  </svg>
                 </button>
               </td>
             </tr>
             <tr v-if="leadExpandidoId === lead.id" class="leads-table__fila-expandida">
               <td colspan="11">
                 <div class="leads-table__historial">
-                  <h3 class="leads-table__historial-titulo">Historial de seguimientos</h3>
+                  <div class="leads-table__historial-cabecera">
+                    <h3 class="leads-table__historial-titulo">
+                      Historial de seguimientos ({{ seguimientosOrdenados(lead).length }})
+                    </h3>
+                    <button
+                      type="button"
+                      class="leads-table__boton-icono"
+                      aria-label="Agregar seguimiento"
+                      @click="emit('abrir-seguimientos', lead)"
+                    >
+                      <svg viewBox="0 0 20 20" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M3 4.5A1.5 1.5 0 014.5 3h8A1.5 1.5 0 0114 4.5v6a1.5 1.5 0 01-1.5 1.5H7l-3 3v-3H4.5A1.5 1.5 0 013 10.5v-6z" />
+                        <path d="M6.5 6.5h4M6.5 8.5h2.5" />
+                      </svg>
+                    </button>
+                  </div>
                   <p v-if="seguimientosOrdenados(lead).length === 0" class="leads-table__historial-vacio">
                     Este lead todavía no tiene seguimientos registrados.
                   </p>
                   <ul v-else class="leads-table__historial-lista">
                     <li v-for="seguimiento in seguimientosOrdenados(lead)" :key="seguimiento.id">
-                      <strong>{{ formatearFechaCompleta(seguimiento.fecha) }}</strong> — {{ seguimiento.texto }}
+                      <span class="cifra">{{ formatearFechaCompleta(seguimiento.fecha) }}</span> — {{ seguimiento.texto }}
                     </li>
                   </ul>
                 </div>
@@ -210,12 +252,54 @@ function seguimientosOrdenados(lead) {
 }
 
 .leads-table__boton-expandir {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   width: 1.6rem;
   height: 1.6rem;
   border: 1px solid var(--color-borde);
   border-radius: var(--radio-borde);
   background: #f8f9fb;
   cursor: pointer;
+}
+
+.leads-table__boton-expandir svg {
+  transition: transform 0.15s ease;
+}
+
+.leads-table__boton-expandir--abierto svg {
+  transform: rotate(90deg);
+}
+
+.leads-table__fila--convertido {
+  border-left: 3px solid var(--color-exito);
+}
+
+.leads-table__fila--rechazado {
+  border-left: 3px solid var(--color-error);
+}
+
+.leads-table__fila--proceso {
+  border-left: 3px solid var(--color-advertencia);
+}
+
+.leads-table__avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--color-borde-tarjeta);
+  color: var(--color-texto);
+  font-size: 0.75rem;
+  font-weight: 600;
+  margin-right: var(--espacio-2);
+  vertical-align: middle;
+}
+
+.leads-table__nombre-contacto {
+  vertical-align: middle;
 }
 
 .leads-table__estado {
@@ -247,12 +331,17 @@ function seguimientosOrdenados(lead) {
   white-space: nowrap;
 }
 
-.leads-table__acciones button {
-  padding: 0.3rem 0.55rem;
+.leads-table__boton-icono {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0.5rem;
   border: 1px solid var(--color-borde);
   border-radius: var(--radio-borde);
   background: #fff;
-  font-size: 0.8rem;
+  color: var(--color-texto);
   cursor: pointer;
 }
 
@@ -266,8 +355,16 @@ function seguimientosOrdenados(lead) {
   white-space: normal;
 }
 
+.leads-table__historial-cabecera {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--espacio-2);
+  margin-bottom: 0.5rem;
+}
+
 .leads-table__historial-titulo {
-  margin: 0 0 0.5rem;
+  margin: 0;
   font-size: 0.9rem;
 }
 
@@ -279,12 +376,44 @@ function seguimientosOrdenados(lead) {
 
 .leads-table__historial-lista {
   margin: 0;
-  padding-left: 1.1rem;
+  padding-left: 0;
+  list-style: none;
   font-size: 0.85rem;
 }
 
 .leads-table__historial-lista li {
-  margin-bottom: 0.25rem;
+  position: relative;
+  padding-left: 1.25rem;
+  padding-bottom: var(--espacio-3);
+}
+
+.leads-table__historial-lista li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0.35rem;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-primario);
+}
+
+.leads-table__historial-lista li::after {
+  content: '';
+  position: absolute;
+  left: 3px;
+  top: 0.75rem;
+  bottom: 0;
+  width: 2px;
+  background: var(--color-borde-tarjeta);
+}
+
+.leads-table__historial-lista li:last-child {
+  padding-bottom: 0;
+}
+
+.leads-table__historial-lista li:last-child::after {
+  content: none;
 }
 
 .leads-table__sin-resultados {
@@ -377,6 +506,27 @@ function seguimientosOrdenados(lead) {
     display: flex;
     flex-wrap: wrap;
     gap: var(--espacio-2);
+  }
+
+  /* El td Contacto se vuelve la cabecera visual de la tarjeta: avatar + nombre en línea,
+     sin la etiqueta "Contacto" como si fuera un dato más. */
+  .leads-table__tabla td[data-label="Contacto"] {
+    display: flex;
+    align-items: center;
+  }
+
+  .leads-table__tabla td[data-label="Contacto"]::before {
+    content: none;
+  }
+
+  .leads-table__tabla td[data-label="Contacto"] .leads-table__avatar {
+    width: 32px;
+    height: 32px;
+    font-size: 0.85rem;
+  }
+
+  .leads-table__nombre-contacto {
+    font-weight: 600;
   }
 
   .leads-table__sin-resultados {

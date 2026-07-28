@@ -1,89 +1,163 @@
-# Micro-plan — Filtro de meses en el Embudo de Conversión
+# Micro-plan — Rediseño de `LeadsTable.vue`
 
 ## Patrón arquitectónico detectado
 
-- **Capas**: los cálculos de negocio viven como **funciones puras** en `src/lib/leadMetrics.js` (sin acoplamiento a Supabase ni a Vue). El store Pinia (`src/stores/leads.js`) solo mantiene `leads` crudos + estado, y **delega cada métrica a un getter que llama a una función pura** (`funnel: (state) => computeFunnel(state.leads)`). `DashboardView.vue` es el contenedor que cablea getters del store a props de componentes de presentación.
-- **Fechas**: todo lo temporal pasa por `src/composables/useDateGMT5.js`. "Hoy" = `getCurrentDateGMT5()` (nunca `new Date()` suelto). El patrón para lógica dependiente de hoy ya está en `computeLast30Days`, que llama a `getCurrentDateGMT5()` **internamente** y los tests lo hacen determinista con `vi.setSystemTime` / mock del composable.
-- **Clave de mes**: el formato canónico `YYYY-MM` ya existe en `computeMonthlyEvolution`, derivado como `lead.created_at.substring(0, 7)`. Se reusa ese mismo mecanismo, no se inventa otro.
-- **Precedente directo en esta sesión**: `LatestSeguimientos.vue` ya dejó de ser 100% presentacional: recibe datos crudos (`seguimientos`) y filtra internamente por rango de fecha con un `<select v-model>` de presets, un `ref` para la selección y un `computed` que aplica el filtro. Este plan replica exactamente ese patrón (select + ref + computed que llama a una función pura existente sobre el subconjunto filtrado).
+- **Vista contenedora**: `src/views/GestionView.vue` es el "smart component". Tiene el store
+  (`useLeadsStore`), maneja modales (`LeadFormModal`, `SeguimientosModal`, `ConfirmDialog`) y traduce
+  eventos de `LeadsTable` a acciones. `LeadsTable` es "presentacional": recibe `leads` por prop y
+  emite intención hacia arriba; no conoce el store ni abre modales por sí mismo.
+- **Contrato actual de `LeadsTable.vue`** (confirmado leyendo el archivo, no asumido):
+  - Props: `leads: Array` (única prop).
+  - Emits: `editar-lead`, `eliminar-lead`, `abrir-seguimientos` — los tres emiten el objeto `lead` completo.
+  - `GestionView` los escucha en las líneas 98-103: `@editar-lead="abrirEdicionLead"`,
+    `@eliminar-lead="pedirConfirmacionEliminar"`, `@abrir-seguimientos="abrirSeguimientos"`.
+- **Estado local del componente**: `busqueda` (ref) y `leadExpandidoId` (ref). Expandir es estado de
+  UI propio, una fila expandida a la vez vía `alternarExpandido(leadId)`.
+- **Métricas**: `getStatus(lead)` y `getDaysInProcess(lead)` vienen de `@/lib/leadMetrics` (funciones
+  puras). `getStatus` devuelve exactamente `'convertido' | 'rechazado' | 'proceso'`
+  (precedencia conversion_at > rechazo_at > proceso). NO se toca.
+- **Sistema de diseño**: tokens en `src/styles/tokens.css`, confirmados y disponibles:
+  `--color-primario (#1a1a18)`, `--color-texto (#1a1a18)`, `--color-borde-tarjeta (#f0eeea)`,
+  `--color-exito (#3a9d6b)`, `--color-error (#d9573f)`, `--color-advertencia (#ff9500)` y sus
+  `*-fondo`. La clase global `.cifra` existe (tokens.css:88) y `.cifra--ingreso` (línea 94).
+- **Convención de nombres**: BEM en español con prefijo `leads-table__`. El badge de estado ya usa el
+  sufijo devuelto por `getStatus` (`__estado--convertido/--rechazado/--proceso`); ese mismo patrón de
+  sufijo se reutiliza para la franja izquierda.
+- **Responsive ya establecido (se conserva idéntico, no se toca)**: tabla completa ≥900px, sticky de
+  columnas izquierda/derecha en 640-900px (vía `overflow-x:auto` + `position:sticky` del layout base),
+  y tarjetas en `@media (max-width: 639px)` con `td { display:block }` +
+  `td::before { content: attr(data-label) }`. El único media query del scoped es `max-width:639px`; no
+  hay un cuarto rango ni breakpoints en px que modificar.
+- **Testing**: Vitest + `@vue/test-utils` `mount`. Test existente en
+  `src/components/gestion/__tests__/LeadsTable.test.js` verifica `data-label`s, clases de estado y
+  `span.cifra`. **jsdom NO aplica media queries**: el DOM es idéntico en los 3 rangos y el reacomodo
+  mobile es puramente CSS — implicación clave para el plan de pruebas (ver abajo).
 
 ## Desviación de arquitectura
 
-- **¿Se necesita desviarse? NO.**
-- El cambio **no introduce un patrón nuevo**: es una extensión consistente del patrón "componente recibe datos crudos y computa su métrica filtrada internamente con una función pura existente", ya autorizado y **ya aplicado a `LatestSeguimientos.vue`** en esta misma sesión. No cambia el modelo de datos (misma tabla `leads`, mismo `created_at`, misma clave `YYYY-MM`). No cambia el contrato de Supabase.
-- **¿Dispara GATE 1? NO** — pero no lo minimizo: no es un cambio de un solo archivo, es un cambio **coordinado sobre 4 archivos de producción** que deben ir juntos porque rompen un contrato de prop y dejan un getter huérfano. La razón por la que NO es GATE 1: (a) la decisión de arquitectura ya fue autorizada por el orquestador; (b) el patrón ya está establecido en el codebase (precedente `LatestSeguimientos`), o sea es "seguir el patrón", no "desviarse de él"; (c) no toca el modelo de datos. Si este precedente **no** existiera, un cambio de contrato de props + getter huérfano sí lo evaluaría como estructural y dispararía GATE 1. Queda registrado explícitamente para revisión.
-
-### Impacto exacto confirmado
-
-1. **Prop de `ConversionFunnel.vue`**: hoy es `funnel: Array` (funnel ya calculado). Pasa a ser `leads: Array` (leads crudos). El componente computa el funnel filtrado internamente. **Es un breaking change del contrato de props** de este componente.
-2. **Lo que pasa `DashboardView.vue`**: hoy `:funnel="leadsStore.funnel"`. Pasa a `:leads="leadsStore.leads"`.
-3. **Getter `funnel` del store**: confirmado por grep que su **único** consumidor es `DashboardView.vue:29`. No lo usa ningún otro componente ni test (el store test no lo referencia). Tras el cambio queda **huérfano**. Decisión: **eliminar el getter `funnel` de `src/stores/leads.js`** y quitar `computeFunnel` de su import (que solo se usa en ese getter). `computeFunnel` **permanece** exportado en `leadMetrics.js` porque ahora lo consume el componente y sigue cubierto por su test unitario. No dejar el getter muerto.
-4. **Helpers puros nuevos en `leadMetrics.js`**: SÍ hacen falta dos, para no meter cálculo en el `.vue`:
-   - `getRecentMonthOptions()` — genera las 3 claves/etiquetas de mes relativas a hoy.
-   - `filterLeadsByMonthKeys(leads, claves)` — filtra leads por una o varias claves `YYYY-MM`. Un solo helper cubre tanto "mes específico" (un elemento) como "Todos" (los 3), reusando `substring(0, 7)` igual que `computeMonthlyEvolution`.
+- ¿Se necesita desviarse? **NO**.
+- **¿Dispara GATE 1? NO.** Evaluado con criterio, no minimizado:
+  - No cambia el modelo de datos: solo se leen campos ya existentes (`lead.seguimientos`,
+    `lead.contact`, y `getStatus(lead)`). No se agregan/renombran campos ni se toca `leadMetrics.js`.
+  - No cambia el contrato del componente: mismas props (`leads`), mismos emits
+    (`editar-lead`, `eliminar-lead`, `abrir-seguimientos`) con el mismo payload (`lead`).
+  - El único cambio de comportamiento —mover el disparador de `abrir-seguimientos` de la columna
+    Acciones al panel expandido— es **reubicar qué elemento del DOM emite un evento que ya existe**,
+    dentro del mismo componente. No cruza el límite de módulos: `GestionView.vue` sigue escuchando el
+    mismo evento con el mismo handler.
+  - Todo lo demás es presentación/accesibilidad (SVG, aria-labels, timeline, avatar, franja, chevron).
+    No introduce patrón nuevo, no afecta >1 módulo, no cambia el flujo de datos.
+- Conclusión: cambio contenido en un solo archivo presentacional. Pipeline normal (builder -> tester),
+  sin gate estructural.
 
 ## Archivos a crear/modificar
 
-> Los 4 archivos de producción están **acoplados y NO se paralelizan entre sí** (contrato de prop + getter). El chunk de helpers en `leadMetrics.js` SÍ puede construirse y testearse primero de forma independiente antes de tocar el componente.
+- `src/components/gestion/LeadsTable.vue` — **modificar** — único archivo de producción a tocar.
+  Cambios (template + script mínimo + estilos scoped):
+  1. **Iconos Editar/Eliminar (Acciones de fila colapsada)**: reemplazar los `<button>` de texto por
+     `<button>` con SVG inline monolínea (`viewBox="0 0 20 20"`, `stroke="currentColor"`,
+     `stroke-width="1.75"`, `fill="none"`). Mantener `@click="emit('editar-lead', lead)"` y
+     `emit('eliminar-lead', lead)`. Cada botón con `aria-label` descriptivo
+     (ej. `aria-label="Editar lead"`, `aria-label="Eliminar lead"`). Área táctil real: `<button>` con
+     `min-width:44px; min-height:44px` (o padding equivalente) aunque el SVG sea de 20px.
+     **Quitar de aquí el botón "Seguimientos"** (era la línea 125).
+  2. **Seguimientos -> panel expandido**: dentro de `.leads-table__historial`, junto al `<h3>`
+     "Historial de seguimientos (N)", agregar un `<button>` con SVG (mismo formato) que emita
+     `emit('abrir-seguimientos', lead)` con `aria-label="Agregar seguimiento"`. Mismo evento, mismo
+     payload; solo cambia el disparador.
+  3. **Conteo (N) en el título**: `Historial de seguimientos ({{ lead.seguimientos?.length ?? 0 }})`
+     — N = cantidad real de notas del lead (equivale a `seguimientosOrdenados(lead).length`). Usar la
+     longitud real del array, no un contador aparte.
+  4. **Chevron expandir**: reemplazar el glifo `+/−` (línea 107) por un SVG chevron (mismo formato)
+     que rote 90° vía CSS `transition: transform 0.15s ease`, disparado por el estado abierto
+     (`leadExpandidoId === lead.id`) con una clase modificadora
+     (ej. `:class="{ 'leads-table__boton-expandir--abierto': leadExpandidoId === lead.id }"`).
+     Conservar el `aria-expanded` existente (línea 104). Recomendado: agregar `aria-label` al botón.
+  5. **Timeline en el historial**: la `<ul class="leads-table__historial-lista">` pasa a lista tipo
+     timeline: cada `<li>` con punto (`--color-primario`) y línea conectora
+     (`--color-borde-tarjeta`) vía `::before`/`::after`. La fecha va en `<span class="cifra">`
+     (reemplaza el `<strong>` actual); el texto de la nota no cambia. Solo estructura/CSS, sin cambios
+     de datos.
+  6. **Franja de color izquierda por estado**: agregar clase modificadora a `.leads-table__fila` ligada
+     a `getStatus(lead)`, ej. `` :class="`leads-table__fila--${getStatus(lead)}`" ``, con
+     `border-left: 3-4px solid` mapeando: `--convertido -> --color-exito`,
+     `--rechazado -> --color-error`, `--proceso -> --color-advertencia`. Reutiliza el patrón de sufijo
+     del badge. NO tocar `getStatus`.
+  7. **Avatar de iniciales**: función local simple (ej. `inicial(lead)` que devuelve
+     `(lead.contact || '').trim().charAt(0).toUpperCase() || '?'`). Renderizar un `<span>` circular con
+     esa inicial dentro del `td[data-label="Contacto"]`, fondo `--color-borde-tarjeta`, texto
+     `--color-texto`. Tamaño 28px en fila desktop/tablet; 32px dentro del `@media (max-width:639px)`.
+  8. **Reacomodo mobile del avatar+nombre (sin cuarto breakpoint)**: DOM único (avatar + nombre siempre
+     dentro del td Contacto). Dentro del `@media (max-width:639px)` YA existente, dar al
+     `td[data-label="Contacto"]` tratamiento de cabecera de tarjeta (avatar 32px + nombre en línea,
+     ocultar su `::before` de data-label "Contacto" para que no sea "una fila de dato más"). Solo CSS
+     dentro del media query existente; no se agregan breakpoints.
 
-- `src/lib/leadMetrics.js` — **modificar** — agregar dos funciones puras exportadas (sin tocar las existentes):
-  - `getRecentMonthOptions()`: usa `getCurrentDateGMT5()` internamente (mismo patrón que `computeLast30Days`; queda determinista bajo `vi.setSystemTime`). Devuelve **3 opciones** = mes actual + los 2 meses anteriores, ordenadas **más reciente primero**. Forma: `[{ clave: 'YYYY-MM', etiqueta: 'Julio 2026' }, ...]`.
-    - Construir cada mes como `new Date(hoy.getFullYear(), hoy.getMonth() - i, 1)` para `i = 0,1,2`. **Usar día 1 fijo**: evita el bug de overflow (ej. hoy 31/03 → restar un mes no debe saltear febrero) y JS normaliza el cruce de año (`mes - i` negativo → año anterior).
-    - `clave` = `` `${año}-${String(mes+1).padStart(2,'0')}` `` (mismo formato que `created_at.substring(0,7)`).
-    - `etiqueta` = nombre de mes en español capitalizado + año, con un array local de nombres `['Enero', ..., 'Diciembre']`.
-  - `filterLeadsByMonthKeys(leads = [], claves = [])`: devuelve los leads cuyo `lead.created_at?.substring(0, 7)` está incluido en `claves`. Aceptar `claves` como array (normalizar a `Set` internamente). Excluir leads sin `created_at`. Si `claves` viene vacío → devolver `[]`.
+- `src/views/GestionView.vue` — **NO se modifica.** Sigue escuchando `abrir-seguimientos` con
+  `abrirSeguimientos`. El cambio de "de dónde sale el evento" es interno a `LeadsTable`; el contrato
+  hacia la vista es idéntico. Confirmado: **alcanza con `LeadsTable.vue` solo.**
 
-- `src/components/dashboard/ConversionFunnel.vue` — **modificar** — cambiar prop `funnel` → `leads: { type: Array, required: true }`; importar `computeFunnel`, `getRecentMonthOptions`, `filterLeadsByMonthKeys` y `ref`/`computed` de vue. Agregar:
-  - `const opcionesMes = getRecentMonthOptions()` (las 3 opciones de mes).
-  - `const mesSeleccionado = ref('todos')` (default "Todos").
-  - `<select v-model="mesSeleccionado">` en la cabecera con `<option value="todos">Todos</option>` + una option por cada opción de mes (`:value="op.clave"`, texto `op.etiqueta`). Espejar markup/estilo del select de `LatestSeguimientos.vue` (clases propias de `.embudo`, `aria-label`).
-  - `const funnel = computed(() => { const claves = mesSeleccionado.value === 'todos' ? opcionesMes.map(o => o.clave) : [mesSeleccionado.value]; return computeFunnel(filterLeadsByMonthKeys(props.leads, claves)) })`.
-  - El `v-for` del template sigue iterando `funnel` (ahora computed). Las funciones de presentación (`obtenerIcono`, `obtenerClaseRango`, `obtenerDetalle`) **no cambian**.
-  - Orden de opciones sugerido: los 3 meses (más reciente primero) y luego "Todos" (espeja a `LatestSeguimientos` donde "Todo" va último). El default es `'todos'` independientemente de la posición.
+- `src/components/gestion/__tests__/LeadsTable.test.js` — **modificar/ampliar** (lo hace dev-tester,
+  no el builder) — agregar los casos del plan de pruebas. Los 7 tests existentes deben seguir
+  pasando: `data-label="Acciones"` se conserva (la columna sigue existiendo, solo cambia su
+  contenido), los `data-label`s no cambian, y `span.cifra` en Factura/Creación/Días sigue igual.
 
-- `src/views/DashboardView.vue` — **modificar** — línea 29: `<ConversionFunnel :funnel="leadsStore.funnel" />` → `<ConversionFunnel :leads="leadsStore.leads" />`.
+**Chunks paralelizables**: un solo archivo de producción con template + estilos scoped entrelazados;
+NO conviene paralelizar el build. El único trabajo independiente es la ampliación de tests
+(dev-tester), una vez definido el marcado por el builder.
 
-- `src/stores/leads.js` — **modificar** — eliminar el getter `funnel` (línea 23) y quitar `computeFunnel` del import (líneas 3-10), ya que su único uso era ese getter. No tocar los demás getters.
+## Plan de pruebas (Vitest — para dev-tester)
 
-### Tests a modificar/crear (obligatorios, ver plan abajo)
+Nota transversal: jsdom no evalúa media queries, así que estos tests validan **marcado, eventos,
+conteo y clases** (contrato + lógica), iguales en los 3 rangos. Lo puramente visual —rotación real del
+chevron, apariencia del timeline, colores renderizados de la franja, reacomodo mobile del avatar— se
+deja para **verificación manual**, igual que en tareas anteriores de la sesión.
 
-- `src/lib/__tests__/leadMetrics.test.js` — **modificar** — agregar bloques `describe` para `getRecentMonthOptions` y `filterLeadsByMonthKeys`. Nota: el archivo ya mockea `getCurrentDateGMT5` a una fecha fija (31/01/2026); los tests nuevos de `getRecentMonthOptions` deben controlar la fecha con `vi.setSystemTime` en sus propios bloques (o ajustar el mock) para cubrir varias fechas de referencia.
-- `src/components/dashboard/__tests__/ConversionFunnel.test.js` — **reescribir** — hoy monta con prop `funnel` ya calculado; debe pasar a montar con prop `leads` crudos y ejercitar el filtro + el cálculo. El comentario de cabecera (líneas 5-7) que dice "el cálculo no cambia en esta tarea" queda desactualizado y debe reescribirse.
-- `src/stores/__tests__/leads.test.js` — **verificar** — no referencia `funnel` (confirmado por grep); no requiere cambios salvo, opcionalmente, un test que afirme que el store ya no expone `funnel`.
-- `src/__tests__/App.test.js` / `DashboardView` — **verificar** que no dependan del prop viejo (no montan `ConversionFunnel` con `funnel` directo; el cambio de `DashboardView` es solo el nombre del prop cableado).
+### Camino feliz
+- Lead normal (sin `conversion_at` ni `rechazo_at`): la fila renderiza avatar con inicial del contacto,
+  iconos de Editar y Eliminar en Acciones, y chevron de expandir. `getStatus` = `proceso`.
 
-## Plan de pruebas (para dev-tester)
+### Borde/error
+- Lead sin `contact` (`''` o ausente): la función de inicial no rompe y devuelve fallback (`'?'`).
+- Lead con `seguimientos: []`: al expandir, el conteo del título muestra `(0)` y sigue el mensaje de
+  historial vacío; el icono "Agregar seguimiento" existe igual.
 
-Foco explícito: probar el **CÁLCULO real** sobre leads mock con fechas en distintos meses, no solo el render.
+### aria-labels (existen y tienen contenido)
+- Botón Editar: `aria-label` no vacío (`.trim().length > 0`).
+- Botón Eliminar: `aria-label` no vacío.
+- Tras expandir, el icono de seguimientos del panel tiene `aria-label="Agregar seguimiento"` (no vacío).
+- (Recomendado) el botón de expandir tiene `aria-label` no vacío y conserva `aria-expanded`.
 
-### A. Helpers puros — `leadMetrics.test.js` (con `vi.useFakeTimers()` + `vi.setSystemTime`)
+### Evento de seguimientos migrado (dispara desde el panel, NO desde la fila colapsada)
+- **Ausencia en fila colapsada**: montar sin expandir; verificar que dentro de
+  `.leads-table__acciones` NO hay control que emita `abrir-seguimientos`. Concretamente:
+  `wrapper.emitted('abrir-seguimientos')` es `undefined` tras click en cada botón de Acciones, y/o que
+  `.leads-table__acciones` contiene exactamente 2 botones (Editar, Eliminar).
+- **Presencia en panel expandido**: expandir la fila (click en botón expandir), localizar el icono de
+  seguimientos dentro de `.leads-table__historial`, click, y verificar que
+  `wrapper.emitted('abrir-seguimientos')` existe, longitud 1, con payload `[0][0]` = el `lead`.
 
-`getRecentMonthOptions()`:
-- **Camino feliz**: con `vi.setSystemTime(new Date(2026, 6, 27))` (27/07/2026) → devuelve exactamente 3 opciones con `clave` `['2026-07', '2026-06', '2026-05']` y `etiqueta` `['Julio 2026', 'Junio 2026', 'Mayo 2026']`, en ese orden (más reciente primero).
-- **Borde cruce de año**: con `vi.setSystemTime(new Date(2026, 0, 15))` (15/01/2026) → claves `['2026-01', '2025-12', '2025-11']` y etiquetas `['Enero 2026', 'Diciembre 2025', 'Noviembre 2025']`.
-- **Borde overflow de día**: con `vi.setSystemTime(new Date(2026, 2, 31))` (31/03/2026) → claves `['2026-03', '2026-02', '2026-01']` (NO debe saltearse febrero por el día 31).
+### Conteo (N) del título coincide con `seguimientos.length` real
+- Lead con 3 seguimientos: al expandir, el texto del título contiene `(3)`.
+- Lead con `seguimientos: []`: el título contiene `(0)`.
+- El conteo refleja el array real del lead, independiente del orden que aplica `seguimientosOrdenados`.
 
-`filterLeadsByMonthKeys(leads, claves)`:
-- Set mock de leads con `created_at` en varios meses (ej. dos en `2026-07`, uno en `2026-06`, uno en `2026-05`, uno en `2026-03`, y uno **sin** `created_at`).
-- **Mes específico**: filtrar por `['2026-07']` → devuelve solo los 2 leads de julio.
-- **Unión (Todos)**: filtrar por `['2026-07','2026-06','2026-05']` → devuelve los 4 leads de esos meses y **excluye** el de `2026-03` (histórico más viejo) y el que no tiene `created_at`.
-- **Borde**: `claves = []` → devuelve `[]`. Lead con `created_at` nulo/ausente → nunca incluido.
+### Franja izquierda mapea a cada uno de los 3 estados
+- Lead con `conversion_at` -> `.leads-table__fila` tiene la clase `leads-table__fila--convertido`.
+- Lead con `rechazo_at` (sin `conversion_at`) -> clase `...--rechazado`.
+- Lead sin ninguno -> clase `...--proceso`.
+- Los colores exactos de la franja se validan manualmente; el test solo asegura el mapeo de clase,
+  reusando la lógica de `getStatus` (ya cubierta por `leadMetrics.test.js`).
 
-### B. Componente — `ConversionFunnel.test.js` (montar con prop `leads`)
-
-Construir leads mock con `created_at` en `2026-07`, `2026-06`, `2026-05` y `2026-03`, con distintos flags de etapa (`contactado_at`, `calificado_at`, `visita_at`, `conversion_at`) de modo que el conteo por etapa sea verificable. Usar `vi.setSystemTime(new Date(2026, 6, 27))` para fijar las opciones de mes.
-
-- **Default "Todos"**: al montar, `select.value === 'todos'`; el funnel renderizado corresponde a `computeFunnel` sobre la **unión de los 3 meses recientes**, y **excluye** los leads de `2026-03`. Verificar los `.embudo__valor` esperados.
-- **Mes específico**: `await select.setValue('2026-06')` → el funnel se recalcula solo con los leads de junio; verificar que los `.embudo__valor` reflejan únicamente ese subconjunto (distintos de los de "Todos").
-- **Opciones del select**: hay exactamente 4 options; las 3 de mes tienen etiquetas `Julio 2026 / Junio 2026 / Mayo 2026` + la de "Todos".
-- **Borde: mes sin leads**: seleccionar un mes cuyo subconjunto quede vacío → el funnel renderiza las 4 etapas en `0` sin romper (los porcentajes usan la guarda `totalLeads > 0` ya existente en `computeFunnel`).
-- **Presentación preservada** (regresión del comportamiento actual, ahora derivado del computed): íconos correctos por etapa (los 4 emojis del mapa), clases `rank-1/2/3/other` por posición, copy `"% del total"` solo en la primera etapa y `"% de conversión"` en el resto, y `.embudo__valor` con clase `.cifra`.
-
-### C. Store — `leads.test.js`
-- (Opcional) Afirmar que `useLeadsStore()` ya no expone `funnel`, dejando constancia de que el getter se eliminó a propósito y no quedó huérfano.
+### Regresión (no romper lo existente)
+- Los 7 tests actuales de `LeadsTable.test.js` deben seguir verdes: `data-label`s intactos
+  (incl. `Acciones`), clases de badge de estado, `span.cifra` en Factura/Creación/Días, y mensajes de
+  "sin resultados" / búsqueda sin coincidencias.
 
 ---
 
 ## Sugerencias fuera de alcance (NO implementar en esta tarea)
-- El array de nombres de meses en español queda hoy local en `leadMetrics.js`. Si a futuro aparece i18n, ese array debería centralizarse en `useDateGMT5.js` (hogar de la lógica de fechas). Para esta tarea, mantenerlo local es consistente con el alcance.
-- `MonthlyEvolutionChart` también usa claves `YYYY-MM`; si en el futuro se quisiera unificar la generación de claves de mes desde un `Date`, `getRecentMonthOptions` sería el punto natural para extraer un helper `monthKeyFromDate`. No hace falta ahora.
+- El botón de expandir usa `aria-expanded` pero no `aria-controls` apuntando al panel; agregarlo
+  mejoraría la accesibilidad, pero excede lo pedido.
+- Los colores hardcodeados que quedan en el scoped (`#f8f9fb`, `#6b7280`, `#eef0f3`, `#a83a2f`, etc.)
+  podrían migrarse a tokens en una limpieza posterior; fuera de alcance aquí.
