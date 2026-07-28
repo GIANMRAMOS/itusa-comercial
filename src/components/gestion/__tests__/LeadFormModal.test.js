@@ -40,39 +40,48 @@ async function setCampoPorLabel(wrapper, textoLabel, valor) {
   return control
 }
 
+// Helper para ubicar (sin setear) el <select> de un campo por el texto de su label.
+// Necesario porque "Fuente" ahora también es un <select>, ubicado antes que "Estado"
+// en el formulario: wrapper.find('select') ya no apunta al <select> de Estado.
+function obtenerSelectPorLabel(wrapper, textoLabel) {
+  const label = wrapper.findAll('label.lead-form-modal__campo').find((l) => l.find('span').text() === textoLabel)
+  expect(label, `no se encontró el campo "${textoLabel}"`).toBeTruthy()
+  return label.find('select')
+}
+
 describe('LeadFormModal', () => {
   describe('estado inicial del selector "Estado"', () => {
     it('alta (sin props.lead): arranca en "proceso"', () => {
-      const wrapper = mount(LeadFormModal, { props: { lead: null } })
-      const select = wrapper.find('select')
+      const wrapper = mount(LeadFormModal, { props: { lead: null, fuentesDisponibles: ['Web'] } })
+      const select = obtenerSelectPorLabel(wrapper, 'Estado')
       expect(select.element.value).toBe('proceso')
     })
 
     it('edición con conversion_at: arranca en "convertido"', () => {
       const lead = crearLead({ conversion_at: '2024-02-01' })
       const wrapper = mount(LeadFormModal, { props: { lead } })
-      const select = wrapper.find('select')
+      const select = obtenerSelectPorLabel(wrapper, 'Estado')
       expect(select.element.value).toBe('convertido')
     })
 
     it('edición con rechazo_at (sin conversion_at): arranca en "rechazado"', () => {
       const lead = crearLead({ rechazo_at: '2024-02-01' })
       const wrapper = mount(LeadFormModal, { props: { lead } })
-      const select = wrapper.find('select')
+      const select = obtenerSelectPorLabel(wrapper, 'Estado')
       expect(select.element.value).toBe('rechazado')
     })
 
     it('edición sin conversion_at ni rechazo_at: arranca en "proceso"', () => {
       const lead = crearLead()
       const wrapper = mount(LeadFormModal, { props: { lead } })
-      const select = wrapper.find('select')
+      const select = obtenerSelectPorLabel(wrapper, 'Estado')
       expect(select.element.value).toBe('proceso')
     })
   })
 
   describe('render condicional por estado (mutuamente excluyente)', () => {
     it('estado=proceso: muestra sub-estado + fecha, NO convertido ni rechazado', () => {
-      const wrapper = mount(LeadFormModal, { props: { lead: null } })
+      const wrapper = mount(LeadFormModal, { props: { lead: null, fuentesDisponibles: ['Web'] } })
 
       const labels = wrapper.findAll('label.lead-form-modal__campo').map((l) => l.find('span').text())
       expect(labels).toContain('Sub-estado')
@@ -83,8 +92,8 @@ describe('LeadFormModal', () => {
     })
 
     it('estado=convertido: muestra "Fecha de convertido", NO proceso ni rechazado', async () => {
-      const wrapper = mount(LeadFormModal, { props: { lead: null } })
-      await wrapper.find('select').setValue('convertido')
+      const wrapper = mount(LeadFormModal, { props: { lead: null, fuentesDisponibles: ['Web'] } })
+      await obtenerSelectPorLabel(wrapper, 'Estado').setValue('convertido')
 
       const labels = wrapper.findAll('label.lead-form-modal__campo').map((l) => l.find('span').text())
       expect(labels).toContain('Fecha de convertido')
@@ -94,8 +103,8 @@ describe('LeadFormModal', () => {
     })
 
     it('estado=rechazado: muestra motivo + "Fecha de rechazado", NO proceso ni convertido', async () => {
-      const wrapper = mount(LeadFormModal, { props: { lead: null } })
-      await wrapper.find('select').setValue('rechazado')
+      const wrapper = mount(LeadFormModal, { props: { lead: null, fuentesDisponibles: ['Web'] } })
+      await obtenerSelectPorLabel(wrapper, 'Estado').setValue('rechazado')
 
       const labels = wrapper.findAll('label.lead-form-modal__campo').map((l) => l.find('span').text())
       expect(labels).toContain('Motivo de rechazo')
@@ -109,10 +118,12 @@ describe('LeadFormModal', () => {
     async function llenarContactYSource(wrapper) {
       await setCampoPorLabel(wrapper, 'Contacto', 'Pedro')
       await setCampoPorLabel(wrapper, 'Fuente', 'Web')
+      await setCampoPorLabel(wrapper, 'Empresa', 'Acme')
+      await setCampoPorLabel(wrapper, 'Correo', 'pedro@acme.com')
     }
 
     it('proceso sin sub_estado_proceso: bloquea y setea errorValidacion', async () => {
-      const wrapper = mount(LeadFormModal, { props: { lead: null } })
+      const wrapper = mount(LeadFormModal, { props: { lead: null, fuentesDisponibles: ['Web'] } })
       await llenarContactYSource(wrapper)
       await setCampoPorLabel(wrapper, 'Fecha', '2024-05-01')
       // sub_estado_proceso queda '' (no seleccionado)
@@ -125,10 +136,12 @@ describe('LeadFormModal', () => {
     })
 
     it('proceso sin fecha_sub_estado: bloquea', async () => {
-      const wrapper = mount(LeadFormModal, { props: { lead: null } })
+      const wrapper = mount(LeadFormModal, { props: { lead: null, fuentesDisponibles: ['Web'] } })
       await llenarContactYSource(wrapper)
       await setCampoPorLabel(wrapper, 'Sub-estado', 'llamar')
-      // fecha_sub_estado queda vacía
+      // la fecha arranca en hoy por defecto (para no mostrar el input vacío); se limpia
+      // explícitamente para simular que el usuario la borró.
+      await setCampoPorLabel(wrapper, 'Fecha', '')
 
       await wrapper.find('form').trigger('submit.prevent')
 
@@ -137,9 +150,11 @@ describe('LeadFormModal', () => {
     })
 
     it('convertido sin conversion_at: bloquea', async () => {
-      const wrapper = mount(LeadFormModal, { props: { lead: null } })
+      const wrapper = mount(LeadFormModal, { props: { lead: null, fuentesDisponibles: ['Web'] } })
       await llenarContactYSource(wrapper)
       await setCampoPorLabel(wrapper, 'Estado', 'convertido')
+      // la fecha arranca en hoy por defecto; se limpia para simular que el usuario la borró.
+      await setCampoPorLabel(wrapper, 'Fecha de convertido', '')
 
       await wrapper.find('form').trigger('submit.prevent')
 
@@ -148,7 +163,7 @@ describe('LeadFormModal', () => {
     })
 
     it('rechazado sin motivo_rechazo: bloquea', async () => {
-      const wrapper = mount(LeadFormModal, { props: { lead: null } })
+      const wrapper = mount(LeadFormModal, { props: { lead: null, fuentesDisponibles: ['Web'] } })
       await llenarContactYSource(wrapper)
       await setCampoPorLabel(wrapper, 'Estado', 'rechazado')
       await setCampoPorLabel(wrapper, 'Fecha de rechazado', '2024-05-01')
@@ -160,10 +175,12 @@ describe('LeadFormModal', () => {
     })
 
     it('rechazado sin rechazo_at: bloquea', async () => {
-      const wrapper = mount(LeadFormModal, { props: { lead: null } })
+      const wrapper = mount(LeadFormModal, { props: { lead: null, fuentesDisponibles: ['Web'] } })
       await llenarContactYSource(wrapper)
       await setCampoPorLabel(wrapper, 'Estado', 'rechazado')
       await setCampoPorLabel(wrapper, 'Motivo de rechazo', 'no_contesto')
+      // la fecha arranca en hoy por defecto; se limpia para simular que el usuario la borró.
+      await setCampoPorLabel(wrapper, 'Fecha de rechazado', '')
 
       await wrapper.find('form').trigger('submit.prevent')
 
@@ -172,7 +189,7 @@ describe('LeadFormModal', () => {
     })
 
     it('regresión: contact vacío bloquea el submit', async () => {
-      const wrapper = mount(LeadFormModal, { props: { lead: null } })
+      const wrapper = mount(LeadFormModal, { props: { lead: null, fuentesDisponibles: ['Web'] } })
       await setCampoPorLabel(wrapper, 'Fuente', 'Web')
       await setCampoPorLabel(wrapper, 'Sub-estado', 'llamar')
       await setCampoPorLabel(wrapper, 'Fecha', '2024-05-01')
@@ -185,7 +202,7 @@ describe('LeadFormModal', () => {
     })
 
     it('regresión: source vacío bloquea el submit', async () => {
-      const wrapper = mount(LeadFormModal, { props: { lead: null } })
+      const wrapper = mount(LeadFormModal, { props: { lead: null, fuentesDisponibles: ['Web'] } })
       await setCampoPorLabel(wrapper, 'Contacto', 'Pedro')
       await setCampoPorLabel(wrapper, 'Sub-estado', 'llamar')
       await setCampoPorLabel(wrapper, 'Fecha', '2024-05-01')
@@ -359,9 +376,11 @@ describe('LeadFormModal', () => {
 
   describe('created_at', () => {
     it('alta: el payload trae created_at = hoy (getTodayGMT5)', async () => {
-      const wrapper = mount(LeadFormModal, { props: { lead: null } })
+      const wrapper = mount(LeadFormModal, { props: { lead: null, fuentesDisponibles: ['Web'] } })
       await setCampoPorLabel(wrapper, 'Contacto', 'Pedro')
       await setCampoPorLabel(wrapper, 'Fuente', 'Web')
+      await setCampoPorLabel(wrapper, 'Empresa', 'Acme')
+      await setCampoPorLabel(wrapper, 'Correo', 'pedro@acme.com')
       await setCampoPorLabel(wrapper, 'Sub-estado', 'llamar')
       await setCampoPorLabel(wrapper, 'Fecha', '2024-05-01')
 

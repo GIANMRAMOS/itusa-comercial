@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useLeadsStore } from '@/stores/leads'
 import LeadsTable from '@/components/gestion/LeadsTable.vue'
 import LeadFormModal from '@/components/gestion/LeadFormModal.vue'
@@ -23,6 +23,11 @@ onMounted(() => {
   leadsStore.fetchLeads()
 })
 
+// Fuentes ya cargadas en el sistema, para el select de Fuente del formulario de lead.
+const fuentesDisponibles = computed(() =>
+  [...new Set(leadsStore.leads.map((lead) => lead.source).filter(Boolean))].sort()
+)
+
 function abrirAltaLead() {
   leadEnEdicion.value = null
   mostrarFormulario.value = true
@@ -39,11 +44,20 @@ function cerrarFormulario() {
 }
 
 async function guardarLead(payload) {
-  const resultado = leadEnEdicion.value
-    ? await leadsStore.updateLead(leadEnEdicion.value.id, payload)
-    : await leadsStore.createLead(payload)
+  const esAlta = !leadEnEdicion.value
+  const resultado = esAlta
+    ? await leadsStore.createLead(payload)
+    : await leadsStore.updateLead(leadEnEdicion.value.id, payload)
 
   if (resultado.success) {
+    // El texto de "Seguimiento inicial" se registra como el primer seguimiento del historial,
+    // solo al dar de alta (no en cada edición, para no duplicar registros).
+    if (esAlta && payload.seguimiento_inicial?.trim()) {
+      await leadsStore.addSeguimiento(resultado.data.id, {
+        fecha: resultado.data.created_at,
+        texto: payload.seguimiento_inicial.trim(),
+      })
+    }
     cerrarFormulario()
   }
 }
@@ -132,6 +146,7 @@ async function archivarLead(lead) {
       v-if="mostrarFormulario"
       :key="leadEnEdicion?.id ?? 'nuevo'"
       :lead="leadEnEdicion"
+      :fuentes-disponibles="fuentesDisponibles"
       @save="guardarLead"
       @close="cerrarFormulario"
     />

@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { getTodayGMT5 } from '@/composables/useDateGMT5'
 import { getStatus } from '@/lib/leadMetrics'
 
@@ -7,6 +7,10 @@ const props = defineProps({
   lead: {
     type: Object,
     default: null,
+  },
+  fuentesDisponibles: {
+    type: Array,
+    default: () => [],
   },
 })
 
@@ -29,10 +33,10 @@ function crearFormularioInicial() {
       no_calificado_at: props.lead.no_calificado_at || '',
       visita_at: props.lead.visita_at || '',
       propuesta_at: props.lead.propuesta_at || '',
-      conversion_at: props.lead.conversion_at || '',
-      rechazo_at: props.lead.rechazo_at || '',
+      conversion_at: props.lead.conversion_at || getTodayGMT5(),
+      rechazo_at: props.lead.rechazo_at || getTodayGMT5(),
       sub_estado_proceso: props.lead.sub_estado_proceso || '',
-      fecha_sub_estado: props.lead.fecha_sub_estado || '',
+      fecha_sub_estado: props.lead.fecha_sub_estado || getTodayGMT5(),
       motivo_rechazo: props.lead.motivo_rechazo || '',
       factura: props.lead.factura ?? '',
       review: props.lead.review || '',
@@ -54,10 +58,10 @@ function crearFormularioInicial() {
     no_calificado_at: '',
     visita_at: '',
     propuesta_at: '',
-    conversion_at: '',
-    rechazo_at: '',
+    conversion_at: getTodayGMT5(),
+    rechazo_at: getTodayGMT5(),
     sub_estado_proceso: '',
-    fecha_sub_estado: '',
+    fecha_sub_estado: getTodayGMT5(),
     motivo_rechazo: '',
     factura: '',
     review: '',
@@ -69,6 +73,18 @@ const errorValidacion = ref('')
 
 // Estado de UI (no es columna): condiciona qué bloque del formulario se muestra.
 const estado = ref(props.lead ? getStatus(props.lead) : 'proceso')
+
+// Opciones del select de Fuente: las ya cargadas en el sistema, más la del lead en edición
+// por si tiene un valor legado que ya no está entre las fuentes vigentes.
+const opcionesFuente = computed(() => {
+  const opciones = new Set(props.fuentesDisponibles)
+  if (formulario.value.source) opciones.add(formulario.value.source)
+  return [...opciones].sort()
+})
+
+function filtrarTelefono() {
+  formulario.value.phone = formulario.value.phone.replace(/[^0-9+]/g, '')
+}
 
 const camposFecha = [
   'created_at',
@@ -83,7 +99,7 @@ const camposFecha = [
 
 // Sub-estados de proceso que, además de marcar contacto, ya implican calificación y/o visita
 // (mapeo cumulativo: Follow-up también contactó, Citado también contactó y calificó).
-const SUB_ESTADOS_CONTACTO = ['llamar', 'volver_a_llamar', 'enviar_correo', 'follow_up', 'citado']
+const SUB_ESTADOS_CONTACTO = ['contactado', 'llamar', 'volver_a_llamar', 'enviar_correo', 'follow_up', 'citado']
 const SUB_ESTADOS_CALIFICADO = ['follow_up', 'citado']
 const SUB_ESTADOS_VISITA = ['citado']
 
@@ -140,6 +156,14 @@ function enviarFormulario() {
     errorValidacion.value = 'La fuente es obligatoria.'
     return
   }
+  if (!formulario.value.company.trim()) {
+    errorValidacion.value = 'La empresa es obligatoria.'
+    return
+  }
+  if (!formulario.value.email.trim()) {
+    errorValidacion.value = 'El correo es obligatorio.'
+    return
+  }
 
   if (estado.value === 'proceso') {
     if (!formulario.value.sub_estado_proceso || !formulario.value.fecha_sub_estado) {
@@ -172,7 +196,10 @@ function enviarFormulario() {
         <div class="lead-form-modal__grid">
           <label class="lead-form-modal__campo">
             <span>Fuente</span>
-            <input v-model="formulario.source" type="text" required />
+            <select v-model="formulario.source" required>
+              <option value="" disabled>Seleccionar...</option>
+              <option v-for="fuente in opcionesFuente" :key="fuente" :value="fuente">{{ fuente }}</option>
+            </select>
           </label>
 
           <label class="lead-form-modal__campo">
@@ -182,17 +209,17 @@ function enviarFormulario() {
 
           <label class="lead-form-modal__campo">
             <span>Empresa</span>
-            <input v-model="formulario.company" type="text" />
+            <input v-model="formulario.company" type="text" required />
           </label>
 
           <label class="lead-form-modal__campo">
             <span>Correo</span>
-            <input v-model="formulario.email" type="email" />
+            <input v-model="formulario.email" type="email" required />
           </label>
 
           <label class="lead-form-modal__campo">
             <span>Teléfono</span>
-            <input v-model="formulario.phone" type="text" />
+            <input v-model="formulario.phone" type="tel" @input="filtrarTelefono" />
           </label>
 
           <label class="lead-form-modal__campo">
@@ -210,7 +237,7 @@ function enviarFormulario() {
           </label>
 
           <label class="lead-form-modal__campo">
-            <span>Factura</span>
+            <span>Valor Estimado Servicio</span>
             <input v-model="formulario.factura" type="number" step="0.01" min="0" />
           </label>
 
@@ -219,6 +246,7 @@ function enviarFormulario() {
               <span>Sub-estado</span>
               <select v-model="formulario.sub_estado_proceso" required>
                 <option value="" disabled>Seleccionar...</option>
+                <option value="contactado">Contactado</option>
                 <option value="llamar">Llamar</option>
                 <option value="volver_a_llamar">Volver a Llamar</option>
                 <option value="enviar_correo">Enviar correo</option>
@@ -258,18 +286,13 @@ function enviarFormulario() {
         </div>
 
         <label class="lead-form-modal__campo lead-form-modal__campo--full">
-          <span>Requerimiento</span>
+          <span>Describe brevemente el Requerimiento</span>
           <textarea v-model="formulario.requerimiento" rows="2"></textarea>
         </label>
 
         <label class="lead-form-modal__campo lead-form-modal__campo--full">
           <span>Seguimiento inicial</span>
           <textarea v-model="formulario.seguimiento_inicial" rows="2"></textarea>
-        </label>
-
-        <label class="lead-form-modal__campo lead-form-modal__campo--full">
-          <span>Review</span>
-          <textarea v-model="formulario.review" rows="2"></textarea>
         </label>
 
         <p v-if="errorValidacion" class="lead-form-modal__error">{{ errorValidacion }}</p>
