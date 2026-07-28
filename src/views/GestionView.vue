@@ -101,7 +101,10 @@ async function archivarLead(lead) {
 <template>
   <div class="gestion-view">
     <header class="gestion-view__cabecera">
-      <h1 class="gestion-view__titulo">Gestión de leads</h1>
+      <div class="gestion-view__fila-titulo">
+        <h1 class="gestion-view__titulo">Gestión de leads</h1>
+        <AddLeadButton @click="abrirAltaLead" />
+      </div>
       <p v-if="leadsStore.error" class="gestion-view__error">{{ leadsStore.error }}</p>
     </header>
 
@@ -115,8 +118,6 @@ async function archivarLead(lead) {
       @abrir-seguimientos="abrirSeguimientos"
       @archivar-lead="archivarLead"
     />
-
-    <AddLeadButton @click="abrirAltaLead" />
 
     <ConfirmDialog
       :visible="mostrarConfirmacionEliminar"
@@ -158,8 +159,15 @@ async function archivarLead(lead) {
   margin-bottom: 1.25rem;
 }
 
+.gestion-view__fila-titulo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--espacio-3);
+}
+
 .gestion-view__titulo {
-  margin: 0 0 0.5rem;
+  margin: 0;
   font-size: 1.5rem;
 }
 
