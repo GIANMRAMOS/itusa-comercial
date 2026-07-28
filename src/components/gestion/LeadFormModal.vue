@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue'
 import { getTodayGMT5 } from '@/composables/useDateGMT5'
 import { getStatus } from '@/lib/leadMetrics'
+import { construirActualizacionEstado } from '@/lib/leadEstado'
 
 const props = defineProps({
   lead: {
@@ -97,12 +98,6 @@ const camposFecha = [
   'rechazo_at',
 ]
 
-// Sub-estados de proceso que, además de marcar contacto, ya implican calificación y/o visita
-// (mapeo cumulativo: Follow-up también contactó, Citado también contactó y calificó).
-const SUB_ESTADOS_CONTACTO = ['contactado', 'llamar', 'volver_a_llamar', 'enviar_correo', 'follow_up', 'citado']
-const SUB_ESTADOS_CALIFICADO = ['follow_up', 'citado']
-const SUB_ESTADOS_VISITA = ['citado']
-
 function construirPayload() {
   const payload = { ...formulario.value }
 
@@ -113,34 +108,20 @@ function construirPayload() {
   payload.factura = payload.factura === '' || payload.factura === null ? null : Number(payload.factura)
   payload.active_campaign = !!payload.active_campaign
 
-  if (estado.value === 'proceso') {
-    const fecha = formulario.value.fecha_sub_estado
-    const subEstado = formulario.value.sub_estado_proceso
-
-    // Avance forward-only: nunca sobrescribir una etapa del embudo que ya tenía valor.
-    if (SUB_ESTADOS_CONTACTO.includes(subEstado) && !payload.contactado_at) {
-      payload.contactado_at = fecha
-    }
-    if (SUB_ESTADOS_CALIFICADO.includes(subEstado) && !payload.calificado_at) {
-      payload.calificado_at = fecha
-    }
-    if (SUB_ESTADOS_VISITA.includes(subEstado) && !payload.visita_at) {
-      payload.visita_at = fecha
-    }
-
-    payload.conversion_at = null
-    payload.rechazo_at = null
-    payload.motivo_rechazo = null
-  } else if (estado.value === 'convertido') {
-    payload.rechazo_at = null
-    payload.motivo_rechazo = null
-    payload.sub_estado_proceso = null
-    payload.fecha_sub_estado = null
-  } else if (estado.value === 'rechazado') {
-    payload.conversion_at = null
-    payload.sub_estado_proceso = null
-    payload.fecha_sub_estado = null
-  }
+  Object.assign(
+    payload,
+    construirActualizacionEstado({
+      estado: estado.value,
+      subEstadoProceso: formulario.value.sub_estado_proceso,
+      fechaSubEstado: formulario.value.fecha_sub_estado,
+      conversionAt: formulario.value.conversion_at,
+      rechazoAt: formulario.value.rechazo_at,
+      motivoRechazo: formulario.value.motivo_rechazo,
+      contactadoAt: payload.contactado_at,
+      calificadoAt: payload.calificado_at,
+      visitaAt: payload.visita_at,
+    })
+  )
 
   return payload
 }

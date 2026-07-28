@@ -91,7 +91,17 @@ function cerrarSeguimientos() {
 
 async function agregarSeguimiento(datosSeguimiento) {
   if (!leadSeguimientos.value) return
-  await leadsStore.addSeguimiento(leadSeguimientos.value.id, datosSeguimiento)
+
+  const { actualizacionEstado, ...datos } = datosSeguimiento
+
+  if (actualizacionEstado) {
+    const resultado = await leadsStore.updateLead(leadSeguimientos.value.id, actualizacionEstado)
+    if (resultado.success) {
+      leadSeguimientos.value = resultado.data
+    }
+  }
+
+  await leadsStore.addSeguimiento(leadSeguimientos.value.id, datos)
 }
 
 async function eliminarSeguimiento(seguimientoId) {

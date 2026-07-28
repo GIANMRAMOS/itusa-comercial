@@ -1,6 +1,8 @@
 <script setup>
 import { computed, ref } from 'vue'
 import { getTodayGMT5, parseDateGMT5 } from '@/composables/useDateGMT5'
+import { getStatus } from '@/lib/leadMetrics'
+import { OPCIONES_SUB_ESTADO_PROCESO, OPCIONES_MOTIVO_RECHAZO, construirActualizacionEstado } from '@/lib/leadEstado'
 import ConfirmDialog from '@/components/shared/ConfirmDialog.vue'
 
 const props = defineProps({
@@ -18,6 +20,15 @@ const errorValidacion = ref('')
 
 // Id del seguimiento que se está editando; null cuando el form está en modo alta.
 const seguimientoEnEdicionId = ref(null)
+
+// Estado/sub-estado del lead: se editan solo al agregar un seguimiento nuevo (modo alta),
+// nunca al editar un seguimiento histórico. Se inicializan con el estado/sub-estado vigente.
+const estado = ref(getStatus(props.lead))
+const subEstadoProceso = ref(props.lead?.sub_estado_proceso || '')
+const fechaSubEstado = ref(props.lead?.fecha_sub_estado || getTodayGMT5())
+const conversionAt = ref(props.lead?.conversion_at || getTodayGMT5())
+const rechazoAt = ref(props.lead?.rechazo_at || getTodayGMT5())
+const motivoRechazo = ref(props.lead?.motivo_rechazo || '')
 
 const mostrarConfirmacionEliminar = ref(false)
 const seguimientoPendienteEliminar = ref(null)
@@ -45,26 +56,60 @@ function formatearFechaCompleta(fecha) {
 function manejarSubmitForm() {
   errorValidacion.value = ''
 
-  if (!nuevaFecha.value) {
-    errorValidacion.value = 'La fecha del seguimiento es obligatoria.'
-    return
-  }
   if (!nuevoTexto.value.trim()) {
     errorValidacion.value = 'El texto del seguimiento es obligatorio.'
     return
   }
 
   if (seguimientoEnEdicionId.value) {
+    if (!nuevaFecha.value) {
+      errorValidacion.value = 'La fecha del seguimiento es obligatoria.'
+      return
+    }
+
     emit('editar-seguimiento', {
       id: seguimientoEnEdicionId.value,
       fecha: nuevaFecha.value,
       texto: nuevoTexto.value.trim(),
     })
+    seguimientoEnEdicionId.value = null
   } else {
-    emit('agregar-seguimiento', { fecha: nuevaFecha.value, texto: nuevoTexto.value.trim() })
+    if (estado.value === 'proceso') {
+      if (!subEstadoProceso.value || !fechaSubEstado.value) {
+        errorValidacion.value = 'El sub-estado y la fecha son obligatorios.'
+        return
+      }
+    } else if (estado.value === 'convertido') {
+      if (!conversionAt.value) {
+        errorValidacion.value = 'La fecha de convertido es obligatoria.'
+        return
+      }
+    } else if (estado.value === 'rechazado') {
+      if (!motivoRechazo.value || !rechazoAt.value) {
+        errorValidacion.value = 'El motivo y la fecha de rechazo son obligatorios.'
+        return
+      }
+    }
+
+    const actualizacionEstado = construirActualizacionEstado({
+      estado: estado.value,
+      subEstadoProceso: subEstadoProceso.value,
+      fechaSubEstado: fechaSubEstado.value,
+      conversionAt: conversionAt.value,
+      rechazoAt: rechazoAt.value,
+      motivoRechazo: motivoRechazo.value,
+      contactadoAt: props.lead?.contactado_at,
+      calificadoAt: props.lead?.calificado_at,
+      visitaAt: props.lead?.visita_at,
+    })
+
+    emit('agregar-seguimiento', {
+      fecha: getTodayGMT5(),
+      texto: nuevoTexto.value.trim(),
+      actualizacionEstado,
+    })
   }
 
-  seguimientoEnEdicionId.value = null
   nuevoTexto.value = ''
   nuevaFecha.value = getTodayGMT5()
 }
@@ -134,12 +179,63 @@ function confirmarEliminacion() {
       <p v-else class="seguimientos-modal__vacio">Todavía no hay seguimientos registrados para este lead.</p>
 
       <form class="seguimientos-modal__form" @submit.prevent="manejarSubmitForm">
-        <label class="seguimientos-modal__campo">
+        <template v-if="!seguimientoEnEdicionId">
+          <label class="seguimientos-modal__campo">
+            <span>Estado</span>
+            <select v-model="estado" required>
+              <option value="proceso">En Proceso</option>
+              <option value="rechazado">Rechazado</option>
+              <option value="convertido">Convertido</option>
+            </select>
+          </label>
+
+          <template v-if="estado === 'proceso'">
+            <label class="seguimientos-modal__campo">
+              <span>Sub-estado</span>
+              <select v-model="subEstadoProceso" required>
+                <option value="" disabled>Seleccionar...</option>
+                <option v-for="opcion in OPCIONES_SUB_ESTADO_PROCESO" :key="opcion.value" :value="opcion.value">
+                  {{ opcion.label }}
+                </option>
+              </select>
+            </label>
+
+            <label class="seguimientos-modal__campo">
+              <span>Fecha a contactar</span>
+              <input v-model="fechaSubEstado" type="date" required />
+            </label>
+          </template>
+
+          <label v-if="estado === 'convertido'" class="seguimientos-modal__campo">
+            <span>Fecha de convertido</span>
+            <input v-model="conversionAt" type="date" required />
+          </label>
+
+          <template v-if="estado === 'rechazado'">
+            <label class="seguimientos-modal__campo">
+              <span>Motivo de rechazo</span>
+              <select v-model="motivoRechazo" required>
+                <option value="" disabled>Seleccionar...</option>
+                <option v-for="opcion in OPCIONES_MOTIVO_RECHAZO" :key="opcion.value" :value="opcion.value">
+                  {{ opcion.label }}
+                </option>
+              </select>
+            </label>
+
+            <label class="seguimientos-modal__campo">
+              <span>Fecha de rechazado</span>
+              <input v-model="rechazoAt" type="date" required />
+            </label>
+          </template>
+        </template>
+
+        <label v-else class="seguimientos-modal__campo">
           <span>Fecha</span>
           <input v-model="nuevaFecha" type="date" required />
         </label>
+
         <label class="seguimientos-modal__campo seguimientos-modal__campo--texto">
-          <span>Texto</span>
+          <span>Describe el seguimiento</span>
           <textarea v-model="nuevoTexto" rows="2" placeholder="Describí el seguimiento..."></textarea>
         </label>
         <p v-if="errorValidacion" class="seguimientos-modal__error">{{ errorValidacion }}</p>
