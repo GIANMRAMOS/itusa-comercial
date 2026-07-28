@@ -17,66 +17,70 @@ function crearLead(overrides = {}) {
   }
 }
 
-const ETIQUETAS_ESPERADAS = [
-  'Fuente',
-  'Contacto',
-  'Empresa',
-  'Correo',
-  'Teléfono',
-  'Creación',
-  'Estado',
-  'Factura',
-  'Días en proceso',
-  'Acciones',
-]
+const ETIQUETAS_ESPERADAS = ['Contacto', 'Empresa', 'Correo', 'Teléfono', 'Factura', 'Acciones']
 
 describe('LeadsTable', () => {
   it('expone el data-label correcto en cada td de datos de la fila principal', () => {
     const wrapper = mount(LeadsTable, { props: { leads: [crearLead()] } })
 
     const fila = wrapper.find('.leads-table__fila')
-    // El primer td (botón expandir) no lleva data-label; los siguientes 10 sí.
+    // El primer td (botón expandir) no lleva data-label; los siguientes 6 sí.
     const tds = fila.findAll('td')
     const dataLabels = tds.map((td) => td.attributes('data-label')).filter((label) => label !== undefined)
 
     expect(dataLabels).toEqual(ETIQUETAS_ESPERADAS)
   })
 
-  it('asigna la clase --convertido cuando el lead tiene conversion_at', () => {
+  it('asigna la clase --convertido cuando el lead tiene conversion_at', async () => {
     const wrapper = mount(LeadsTable, {
       props: { leads: [crearLead({ conversion_at: '2024-02-01T00:00:00.000Z' })] },
     })
 
-    const badge = wrapper.find('.leads-table__estado')
+    await wrapper.find('.leads-table__boton-expandir').trigger('click')
+
+    const badge = wrapper.find('.leads-table__meta .leads-table__estado')
+    expect(badge.exists()).toBe(true)
     expect(badge.classes()).toContain('leads-table__estado--convertido')
   })
 
-  it('asigna la clase --rechazado cuando el lead tiene rechazo_at y no conversion_at', () => {
+  it('asigna la clase --rechazado cuando el lead tiene rechazo_at y no conversion_at', async () => {
     const wrapper = mount(LeadsTable, {
       props: { leads: [crearLead({ rechazo_at: '2024-02-01T00:00:00.000Z' })] },
     })
 
-    const badge = wrapper.find('.leads-table__estado')
+    await wrapper.find('.leads-table__boton-expandir').trigger('click')
+
+    const badge = wrapper.find('.leads-table__meta .leads-table__estado')
+    expect(badge.exists()).toBe(true)
     expect(badge.classes()).toContain('leads-table__estado--rechazado')
   })
 
-  it('asigna la clase --proceso cuando el lead no tiene conversion_at ni rechazo_at', () => {
+  it('asigna la clase --proceso cuando el lead no tiene conversion_at ni rechazo_at', async () => {
     const wrapper = mount(LeadsTable, { props: { leads: [crearLead()] } })
 
-    const badge = wrapper.find('.leads-table__estado')
+    await wrapper.find('.leads-table__boton-expandir').trigger('click')
+
+    const badge = wrapper.find('.leads-table__meta .leads-table__estado')
+    expect(badge.exists()).toBe(true)
     expect(badge.classes()).toContain('leads-table__estado--proceso')
   })
 
-  it('envuelve Factura, Creación y Días en proceso en un span.cifra', () => {
+  it('envuelve Factura en un span.cifra', () => {
     const wrapper = mount(LeadsTable, { props: { leads: [crearLead()] } })
 
     const tdFactura = wrapper.find('td[data-label="Factura"]')
-    const tdCreacion = wrapper.find('td[data-label="Creación"]')
-    const tdDias = wrapper.find('td[data-label="Días en proceso"]')
-
     expect(tdFactura.find('span.cifra').exists()).toBe(true)
-    expect(tdCreacion.find('span.cifra').exists()).toBe(true)
-    expect(tdDias.find('span.cifra').exists()).toBe(true)
+  })
+
+  it('envuelve la fecha de Creación del chip de meta-info en un span.cifra', async () => {
+    const wrapper = mount(LeadsTable, { props: { leads: [crearLead()] } })
+
+    await wrapper.find('.leads-table__boton-expandir').trigger('click')
+
+    const chips = wrapper.findAll('.leads-table__meta-chip')
+    const chipCreacion = chips.find((chip) => chip.text().includes('Creación'))
+    expect(chipCreacion).toBeTruthy()
+    expect(chipCreacion.find('.leads-table__meta-valor.cifra').exists()).toBe(true)
   })
 
   it('muestra el mensaje "No hay leads..." cuando la lista de leads está vacía', () => {
@@ -238,6 +242,95 @@ describe('LeadsTable', () => {
     })
   })
 
+  describe('bloque de metadatos (.leads-table__meta) en el panel expandido (HU-2)', () => {
+    it('muestra 3 chips con label+valor: Fuente, Creación (fecha con .cifra) y Estado (badge correcto)', async () => {
+      const lead = crearLead({
+        source: 'Referido',
+        created_at: '2024-01-10',
+        conversion_at: '2024-02-01T00:00:00.000Z',
+      })
+      const wrapper = mount(LeadsTable, { props: { leads: [lead] } })
+
+      await wrapper.find('.leads-table__boton-expandir').trigger('click')
+
+      const meta = wrapper.find('.leads-table__meta')
+      expect(meta.exists()).toBe(true)
+
+      const chips = meta.findAll('.leads-table__meta-chip')
+      expect(chips.length).toBe(3)
+
+      const chipFuente = chips.find((chip) => chip.text().includes('Fuente'))
+      expect(chipFuente).toBeTruthy()
+      expect(chipFuente.find('.leads-table__meta-valor').text()).toBe('Referido')
+
+      const chipCreacion = chips.find((chip) => chip.text().includes('Creación'))
+      expect(chipCreacion).toBeTruthy()
+      const valorCreacion = chipCreacion.find('.leads-table__meta-valor')
+      expect(valorCreacion.classes()).toContain('cifra')
+      expect(valorCreacion.text()).toBe('10/01/2024')
+
+      const chipEstado = chips.find((chip) => chip.text().includes('Estado'))
+      expect(chipEstado).toBeTruthy()
+      const badge = chipEstado.find('.leads-table__estado')
+      expect(badge.exists()).toBe(true)
+      expect(badge.classes()).toContain('leads-table__estado--convertido')
+    })
+
+    it('sin lead.source (undefined), el chip de Fuente muestra el fallback "—"', async () => {
+      const lead = crearLead()
+      delete lead.source
+      const wrapper = mount(LeadsTable, { props: { leads: [lead] } })
+
+      await wrapper.find('.leads-table__boton-expandir').trigger('click')
+
+      const chips = wrapper.findAll('.leads-table__meta .leads-table__meta-chip')
+      const chipFuente = chips.find((chip) => chip.text().includes('Fuente'))
+      expect(chipFuente).toBeTruthy()
+      expect(chipFuente.find('.leads-table__meta-valor').text()).toBe('—')
+    })
+
+    it('sin lead.source (null), el chip de Fuente también muestra el fallback "—"', async () => {
+      const wrapper = mount(LeadsTable, { props: { leads: [crearLead({ source: null })] } })
+
+      await wrapper.find('.leads-table__boton-expandir').trigger('click')
+
+      const chips = wrapper.findAll('.leads-table__meta .leads-table__meta-chip')
+      const chipFuente = chips.find((chip) => chip.text().includes('Fuente'))
+      expect(chipFuente.find('.leads-table__meta-valor').text()).toBe('—')
+    })
+
+    it('el bloque .leads-table__meta aparece antes de la lista de seguimientos', async () => {
+      const lead = crearLead({
+        seguimientos: [{ id: 1, fecha: '2024-01-01T00:00:00.000Z', texto: 'Primero' }],
+      })
+      const wrapper = mount(LeadsTable, { props: { leads: [lead] } })
+
+      await wrapper.find('.leads-table__boton-expandir').trigger('click')
+
+      const html = wrapper.find('.leads-table__historial').html()
+      const indiceMeta = html.indexOf('leads-table__meta"')
+      const indiceLista = html.indexOf('leads-table__historial-lista')
+
+      expect(indiceMeta).toBeGreaterThan(-1)
+      expect(indiceLista).toBeGreaterThan(-1)
+      expect(indiceMeta).toBeLessThan(indiceLista)
+    })
+
+    it('el bloque .leads-table__meta aparece antes del mensaje de "sin seguimientos" cuando la lista está vacía', async () => {
+      const wrapper = mount(LeadsTable, { props: { leads: [crearLead({ seguimientos: [] })] } })
+
+      await wrapper.find('.leads-table__boton-expandir').trigger('click')
+
+      const html = wrapper.find('.leads-table__historial').html()
+      const indiceMeta = html.indexOf('leads-table__meta"')
+      const indiceVacio = html.indexOf('leads-table__historial-vacio')
+
+      expect(indiceMeta).toBeGreaterThan(-1)
+      expect(indiceVacio).toBeGreaterThan(-1)
+      expect(indiceMeta).toBeLessThan(indiceVacio)
+    })
+  })
+
   describe('prop mostrarArchivar', () => {
     it('con mostrarArchivar=true, existe el botón Archivar con aria-label correcto y emite archivar-lead con el lead completo', async () => {
       const lead = crearLead({ contact: 'Juan Pérez' })
@@ -301,6 +394,57 @@ describe('LeadsTable', () => {
       expect(emitido).toBeTruthy()
       const leadEmitido = emitido[0][0]
       expect(leadEmitido.contact).toBe('Ana López')
+    })
+  })
+
+  describe('orden manual por columna (HU-6)', () => {
+    function crearLeadsParaOrden() {
+      return [
+        crearLead({ id: 1, contact: 'Carlos', company: 'Zeta SAC', created_at: '2024-01-05' }),
+        crearLead({ id: 2, contact: 'Ana', company: 'Beta SAC', created_at: '2024-03-01' }),
+        crearLead({ id: 3, contact: 'Bruno', company: 'Alfa SAC', created_at: '2024-02-15' }),
+      ]
+    }
+
+    function nombresContacto(wrapper) {
+      return wrapper.findAll('td[data-label="Contacto"] .leads-table__nombre-contacto').map((td) => td.text())
+    }
+
+    function botonCabecera(wrapper, texto) {
+      return wrapper.findAll('.leads-table__boton-orden').find((b) => b.text().includes(texto))
+    }
+
+    it('sin ningún click en las cabeceras, el orden por defecto sigue siendo por created_at descendente', () => {
+      const wrapper = mount(LeadsTable, { props: { leads: crearLeadsParaOrden() } })
+      expect(nombresContacto(wrapper)).toEqual(['Ana', 'Bruno', 'Carlos'])
+    })
+
+    it('click en "Contacto" sin orden activo: ordena A-Z por contact', async () => {
+      const wrapper = mount(LeadsTable, { props: { leads: crearLeadsParaOrden() } })
+
+      await botonCabecera(wrapper, 'Contacto').trigger('click')
+
+      expect(nombresContacto(wrapper)).toEqual(['Ana', 'Bruno', 'Carlos'])
+    })
+
+    it('segundo click en "Contacto": invierte a Z-A', async () => {
+      const wrapper = mount(LeadsTable, { props: { leads: crearLeadsParaOrden() } })
+
+      await botonCabecera(wrapper, 'Contacto').trigger('click')
+      await botonCabecera(wrapper, 'Contacto').trigger('click')
+
+      expect(nombresContacto(wrapper)).toEqual(['Carlos', 'Bruno', 'Ana'])
+    })
+
+    it('click en "Empresa" con "Contacto" previamente activo: reinicia en A-Z por company', async () => {
+      const wrapper = mount(LeadsTable, { props: { leads: crearLeadsParaOrden() } })
+
+      await botonCabecera(wrapper, 'Contacto').trigger('click')
+      await botonCabecera(wrapper, 'Contacto').trigger('click') // Z-A por contact
+      await botonCabecera(wrapper, 'Empresa').trigger('click') // debe reiniciar en A-Z por company
+
+      // Alfa (Bruno) < Beta (Ana) < Zeta (Carlos)
+      expect(nombresContacto(wrapper)).toEqual(['Bruno', 'Ana', 'Carlos'])
     })
   })
 

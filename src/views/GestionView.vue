@@ -85,6 +85,14 @@ async function eliminarSeguimiento(seguimientoId) {
   await leadsStore.deleteSeguimiento(seguimientoId, leadSeguimientos.value.id)
 }
 
+async function editarSeguimiento(datos) {
+  if (!leadSeguimientos.value) return
+  await leadsStore.updateSeguimiento(datos.id, leadSeguimientos.value.id, {
+    fecha: datos.fecha,
+    texto: datos.texto,
+  })
+}
+
 async function archivarLead(lead) {
   await leadsStore.archivarLead(lead.id)
 }
@@ -133,6 +141,7 @@ async function archivarLead(lead) {
       :lead="leadSeguimientos"
       @agregar-seguimiento="agregarSeguimiento"
       @eliminar-seguimiento="eliminarSeguimiento"
+      @editar-seguimiento="editarSeguimiento"
       @close="cerrarSeguimientos"
     />
   </div>

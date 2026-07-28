@@ -162,6 +162,56 @@ describe('useLeadsStore.updateLead', () => {
   })
 })
 
+describe('useLeadsStore.updateSeguimiento', () => {
+  it('camino feliz: invoca update()/eq()/select()/single() y reemplaza el item en lead.seguimientos por índice', async () => {
+    const seguimientoActualizado = { id: 20, fecha: '2024-03-15', texto: 'Editado' }
+    const single = vi.fn().mockResolvedValue({ data: seguimientoActualizado, error: null })
+    const select = vi.fn(() => ({ single }))
+    const eq = vi.fn(() => ({ select }))
+    const update = vi.fn(() => ({ eq }))
+    supabase.from.mockReturnValue({ update })
+
+    const store = useLeadsStore()
+    store.leads = [
+      {
+        id: 1,
+        contact: 'Juan',
+        seguimientos: [
+          { id: 10, fecha: '2024-01-01', texto: 'Primero' },
+          { id: 20, fecha: '2024-02-01', texto: 'Segundo' },
+        ],
+      },
+    ]
+
+    const resultado = await store.updateSeguimiento(20, 1, { fecha: '2024-03-15', texto: 'Editado' })
+
+    expect(supabase.from).toHaveBeenCalledWith('seguimientos')
+    expect(update).toHaveBeenCalledWith({ fecha: '2024-03-15', texto: 'Editado' })
+    expect(eq).toHaveBeenCalledWith('id', 20)
+    expect(store.leads[0].seguimientos[0]).toEqual({ id: 10, fecha: '2024-01-01', texto: 'Primero' })
+    expect(store.leads[0].seguimientos[1]).toEqual(seguimientoActualizado)
+    expect(resultado).toEqual({ success: true, data: seguimientoActualizado })
+  })
+
+  it('borde: si Supabase retorna error, setea error, deja la memoria intacta y retorna success:false', async () => {
+    const single = vi.fn().mockResolvedValue({ data: null, error: { message: 'No se pudo actualizar' } })
+    const select = vi.fn(() => ({ single }))
+    const eq = vi.fn(() => ({ select }))
+    const update = vi.fn(() => ({ eq }))
+    supabase.from.mockReturnValue({ update })
+
+    const store = useLeadsStore()
+    const seguimientosOriginales = [{ id: 10, fecha: '2024-01-01', texto: 'Primero' }]
+    store.leads = [{ id: 1, contact: 'Juan', seguimientos: seguimientosOriginales }]
+
+    const resultado = await store.updateSeguimiento(10, 1, { fecha: '2024-03-15', texto: 'Editado' })
+
+    expect(store.error).toBe('No se pudo actualizar')
+    expect(store.leads[0].seguimientos).toEqual([{ id: 10, fecha: '2024-01-01', texto: 'Primero' }])
+    expect(resultado).toEqual({ success: false, error: 'No se pudo actualizar' })
+  })
+})
+
 describe('useLeadsStore.deleteLead', () => {
   it('invoca delete()/eq() y quita el lead del estado', async () => {
     const eq = vi.fn().mockResolvedValue({ error: null })

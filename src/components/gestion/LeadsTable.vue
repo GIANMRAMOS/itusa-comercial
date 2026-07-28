@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref } from 'vue'
-import { getStatus, getDaysInProcess } from '@/lib/leadMetrics'
+import { getStatus } from '@/lib/leadMetrics'
 import { parseDateGMT5 } from '@/composables/useDateGMT5'
 
 const props = defineProps({
@@ -41,6 +41,21 @@ const emit = defineEmits([
 const busqueda = ref('')
 const leadExpandidoId = ref(null)
 
+// Orden manual por columna: null = sin orden manual (default por fecha de creación)
+const ordenColumna = ref(null) // 'contact' | 'company' | null
+const ordenDireccion = ref('asc') // 'asc' | 'desc'
+
+// Alterna el orden manual de una columna: cambia de columna reinicia en A-Z,
+// repetir la misma columna alterna A-Z <-> Z-A.
+function alternarOrden(columna) {
+  if (ordenColumna.value !== columna) {
+    ordenColumna.value = columna
+    ordenDireccion.value = 'asc'
+  } else {
+    ordenDireccion.value = ordenDireccion.value === 'asc' ? 'desc' : 'asc'
+  }
+}
+
 const leadsFiltrados = computed(() => {
   const termino = busqueda.value.trim().toLowerCase()
 
@@ -53,6 +68,13 @@ const leadsFiltrados = computed(() => {
     : props.leads
 
   return [...filtrados].sort((a, b) => {
+    if (ordenColumna.value) {
+      const valorA = (a[ordenColumna.value] || '').toString().toLowerCase()
+      const valorB = (b[ordenColumna.value] || '').toString().toLowerCase()
+      const comparacion = valorA.localeCompare(valorB)
+      return ordenDireccion.value === 'asc' ? comparacion : -comparacion
+    }
+
     const fechaA = parseDateGMT5(a.created_at)
     const fechaB = parseDateGMT5(b.created_at)
     if (!fechaA && !fechaB) return 0
@@ -113,15 +135,49 @@ function inicial(lead) {
         <thead>
           <tr>
             <th class="leads-table__col-izquierda"></th>
-            <th>Fuente</th>
-            <th>Contacto</th>
-            <th>Empresa</th>
+            <th>
+              <button type="button" class="leads-table__boton-orden" @click="alternarOrden('contact')">
+                Contacto
+                <svg
+                  v-if="ordenColumna === 'contact'"
+                  viewBox="0 0 20 20"
+                  width="12"
+                  height="12"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                  :style="{ transform: ordenDireccion === 'desc' ? 'rotate(180deg)' : 'none' }"
+                >
+                  <path d="M5 8l5 5 5-5" />
+                </svg>
+              </button>
+            </th>
+            <th>
+              <button type="button" class="leads-table__boton-orden" @click="alternarOrden('company')">
+                Empresa
+                <svg
+                  v-if="ordenColumna === 'company'"
+                  viewBox="0 0 20 20"
+                  width="12"
+                  height="12"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                  :style="{ transform: ordenDireccion === 'desc' ? 'rotate(180deg)' : 'none' }"
+                >
+                  <path d="M5 8l5 5 5-5" />
+                </svg>
+              </button>
+            </th>
             <th>Correo</th>
             <th>Teléfono</th>
-            <th>Creación</th>
-            <th>Estado</th>
             <th>Factura</th>
-            <th>Días en proceso</th>
             <th class="leads-table__col-derecha">Acciones</th>
           </tr>
         </thead>
@@ -142,7 +198,6 @@ function inicial(lead) {
                   </svg>
                 </button>
               </td>
-              <td data-label="Fuente">{{ lead.source || '—' }}</td>
               <td data-label="Contacto">
                 <span class="leads-table__avatar" aria-hidden="true">{{ inicial(lead) }}</span>
                 <span class="leads-table__nombre-contacto">{{ lead.contact || '—' }}</span>
@@ -150,14 +205,7 @@ function inicial(lead) {
               <td data-label="Empresa">{{ lead.company || '—' }}</td>
               <td data-label="Correo">{{ lead.email || '—' }}</td>
               <td data-label="Teléfono">{{ lead.phone || '—' }}</td>
-              <td data-label="Creación"><span class="cifra">{{ formatearFechaCompleta(lead.created_at) }}</span></td>
-              <td data-label="Estado">
-                <span class="leads-table__estado" :class="`leads-table__estado--${getStatus(lead)}`">
-                  {{ getStatus(lead) }}
-                </span>
-              </td>
               <td data-label="Factura"><span class="cifra" :class="{ 'cifra--ingreso': lead.factura }">{{ formatearFactura(lead.factura) }}</span></td>
-              <td data-label="Días en proceso"><span class="cifra">{{ getDaysInProcess(lead) }}</span></td>
               <td data-label="Acciones" class="leads-table__acciones leads-table__col-derecha">
                 <button
                   v-if="mostrarEditar"
@@ -206,7 +254,7 @@ function inicial(lead) {
               </td>
             </tr>
             <tr v-if="leadExpandidoId === lead.id" class="leads-table__fila-expandida">
-              <td colspan="11">
+              <td colspan="7">
                 <div class="leads-table__historial">
                   <div class="leads-table__historial-cabecera">
                     <h3 class="leads-table__historial-titulo">Historial de seguimientos</h3>
@@ -224,6 +272,22 @@ function inicial(lead) {
                       </svg>
                     </button>
                   </div>
+                  <div class="leads-table__meta">
+                    <span class="leads-table__meta-chip">
+                      <span class="leads-table__meta-etiqueta">Fuente</span>
+                      <span class="leads-table__meta-valor">{{ lead.source || '—' }}</span>
+                    </span>
+                    <span class="leads-table__meta-chip">
+                      <span class="leads-table__meta-etiqueta">Creación</span>
+                      <span class="leads-table__meta-valor cifra">{{ formatearFechaCompleta(lead.created_at) }}</span>
+                    </span>
+                    <span class="leads-table__meta-chip">
+                      <span class="leads-table__meta-etiqueta">Estado</span>
+                      <span class="leads-table__estado" :class="`leads-table__estado--${getStatus(lead)}`">
+                        {{ getStatus(lead) }}
+                      </span>
+                    </span>
+                  </div>
                   <p v-if="seguimientosOrdenados(lead).length === 0" class="leads-table__historial-vacio">
                     Este lead todavía no tiene seguimientos registrados.
                   </p>
@@ -237,7 +301,7 @@ function inicial(lead) {
             </tr>
           </template>
           <tr v-if="leadsFiltrados.length === 0">
-            <td colspan="11" class="leads-table__sin-resultados">No hay leads que coincidan con la búsqueda.</td>
+            <td colspan="7" class="leads-table__sin-resultados">No hay leads que coincidan con la búsqueda.</td>
           </tr>
         </tbody>
       </table>
@@ -282,6 +346,19 @@ function inicial(lead) {
   text-align: left;
   border-bottom: 1px solid #eef0f3;
   white-space: nowrap;
+}
+
+.leads-table__boton-orden {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0;
+  border: none;
+  background: transparent;
+  font: inherit;
+  font-weight: inherit;
+  color: inherit;
+  cursor: pointer;
 }
 
 .leads-table__col-izquierda,
@@ -435,6 +512,32 @@ function inicial(lead) {
   color: var(--color-texto-secundario);
   font-size: 0.75rem;
   font-weight: 600;
+}
+
+.leads-table__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--espacio-3);
+  margin-bottom: var(--espacio-3);
+}
+
+.leads-table__meta-chip {
+  display: flex;
+  align-items: center;
+  gap: var(--espacio-1);
+  padding: 0.3rem 0.6rem;
+  border-radius: var(--radio-borde);
+  background: var(--color-borde-tarjeta);
+  font-size: 0.8rem;
+}
+
+.leads-table__meta-etiqueta {
+  color: var(--color-texto-terciario);
+  font-weight: 600;
+}
+
+.leads-table__meta-valor {
+  color: var(--color-texto);
 }
 
 .leads-table__historial-vacio {

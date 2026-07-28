@@ -186,6 +186,33 @@ export const useLeadsStore = defineStore('leads', {
       }
     },
 
+    async updateSeguimiento(seguimientoId, leadId, datosSeguimiento) {
+      this.error = null
+      try {
+        const { data, error } = await supabase
+          .from('seguimientos')
+          .update(datosSeguimiento)
+          .eq('id', seguimientoId)
+          .select()
+          .single()
+        if (error) {
+          this.error = error.message
+          return { success: false, error: error.message }
+        }
+        const lead = this.leads.find((lead) => lead.id === leadId)
+        if (lead && Array.isArray(lead.seguimientos)) {
+          const indice = lead.seguimientos.findIndex((s) => s.id === seguimientoId)
+          if (indice !== -1) {
+            lead.seguimientos[indice] = data
+          }
+        }
+        return { success: true, data }
+      } catch (error) {
+        this.error = error.message
+        return { success: false, error: error.message }
+      }
+    },
+
     async deleteSeguimiento(seguimientoId, leadId) {
       this.error = null
       try {

@@ -1,6 +1,7 @@
 <script setup>
 import { ref } from 'vue'
 import { getTodayGMT5 } from '@/composables/useDateGMT5'
+import { getStatus } from '@/lib/leadMetrics'
 
 const props = defineProps({
   lead: {
@@ -30,6 +31,9 @@ function crearFormularioInicial() {
       propuesta_at: props.lead.propuesta_at || '',
       conversion_at: props.lead.conversion_at || '',
       rechazo_at: props.lead.rechazo_at || '',
+      sub_estado_proceso: props.lead.sub_estado_proceso || '',
+      fecha_sub_estado: props.lead.fecha_sub_estado || '',
+      motivo_rechazo: props.lead.motivo_rechazo || '',
       factura: props.lead.factura ?? '',
       review: props.lead.review || '',
     }
@@ -52,6 +56,9 @@ function crearFormularioInicial() {
     propuesta_at: '',
     conversion_at: '',
     rechazo_at: '',
+    sub_estado_proceso: '',
+    fecha_sub_estado: '',
+    motivo_rechazo: '',
     factura: '',
     review: '',
   }
@@ -59,6 +66,9 @@ function crearFormularioInicial() {
 
 const formulario = ref(crearFormularioInicial())
 const errorValidacion = ref('')
+
+// Estado de UI (no es columna): condiciona qué bloque del formulario se muestra.
+const estado = ref(props.lead ? getStatus(props.lead) : 'proceso')
 
 const camposFecha = [
   'created_at',
@@ -71,6 +81,12 @@ const camposFecha = [
   'rechazo_at',
 ]
 
+// Sub-estados de proceso que, además de marcar contacto, ya implican calificación y/o visita
+// (mapeo cumulativo: Follow-up también contactó, Citado también contactó y calificó).
+const SUB_ESTADOS_CONTACTO = ['llamar', 'volver_a_llamar', 'enviar_correo', 'follow_up', 'citado']
+const SUB_ESTADOS_CALIFICADO = ['follow_up', 'citado']
+const SUB_ESTADOS_VISITA = ['citado']
+
 function construirPayload() {
   const payload = { ...formulario.value }
 
@@ -80,6 +96,35 @@ function construirPayload() {
 
   payload.factura = payload.factura === '' || payload.factura === null ? null : Number(payload.factura)
   payload.active_campaign = !!payload.active_campaign
+
+  if (estado.value === 'proceso') {
+    const fecha = formulario.value.fecha_sub_estado
+    const subEstado = formulario.value.sub_estado_proceso
+
+    // Avance forward-only: nunca sobrescribir una etapa del embudo que ya tenía valor.
+    if (SUB_ESTADOS_CONTACTO.includes(subEstado) && !payload.contactado_at) {
+      payload.contactado_at = fecha
+    }
+    if (SUB_ESTADOS_CALIFICADO.includes(subEstado) && !payload.calificado_at) {
+      payload.calificado_at = fecha
+    }
+    if (SUB_ESTADOS_VISITA.includes(subEstado) && !payload.visita_at) {
+      payload.visita_at = fecha
+    }
+
+    payload.conversion_at = null
+    payload.rechazo_at = null
+    payload.motivo_rechazo = null
+  } else if (estado.value === 'convertido') {
+    payload.rechazo_at = null
+    payload.motivo_rechazo = null
+    payload.sub_estado_proceso = null
+    payload.fecha_sub_estado = null
+  } else if (estado.value === 'rechazado') {
+    payload.conversion_at = null
+    payload.sub_estado_proceso = null
+    payload.fecha_sub_estado = null
+  }
 
   return payload
 }
@@ -95,9 +140,22 @@ function enviarFormulario() {
     errorValidacion.value = 'La fuente es obligatoria.'
     return
   }
-  if (!formulario.value.created_at) {
-    errorValidacion.value = 'La fecha de creación es obligatoria.'
-    return
+
+  if (estado.value === 'proceso') {
+    if (!formulario.value.sub_estado_proceso || !formulario.value.fecha_sub_estado) {
+      errorValidacion.value = 'El sub-estado y la fecha son obligatorios.'
+      return
+    }
+  } else if (estado.value === 'convertido') {
+    if (!formulario.value.conversion_at) {
+      errorValidacion.value = 'La fecha de convertido es obligatoria.'
+      return
+    }
+  } else if (estado.value === 'rechazado') {
+    if (!formulario.value.motivo_rechazo || !formulario.value.rechazo_at) {
+      errorValidacion.value = 'El motivo y la fecha de rechazo son obligatorios.'
+      return
+    }
   }
 
   emit('save', construirPayload())
@@ -138,8 +196,12 @@ function enviarFormulario() {
           </label>
 
           <label class="lead-form-modal__campo">
-            <span>Fecha de creación</span>
-            <input v-model="formulario.created_at" type="date" required />
+            <span>Estado</span>
+            <select v-model="estado" required>
+              <option value="proceso">En Proceso</option>
+              <option value="rechazado">Rechazado</option>
+              <option value="convertido">Convertido</option>
+            </select>
           </label>
 
           <label class="lead-form-modal__campo lead-form-modal__campo--checkbox">
@@ -152,40 +214,47 @@ function enviarFormulario() {
             <input v-model="formulario.factura" type="number" step="0.01" min="0" />
           </label>
 
-          <label class="lead-form-modal__campo">
-            <span>Fecha contactado</span>
-            <input v-model="formulario.contactado_at" type="date" />
+          <template v-if="estado === 'proceso'">
+            <label class="lead-form-modal__campo">
+              <span>Sub-estado</span>
+              <select v-model="formulario.sub_estado_proceso" required>
+                <option value="" disabled>Seleccionar...</option>
+                <option value="llamar">Llamar</option>
+                <option value="volver_a_llamar">Volver a Llamar</option>
+                <option value="enviar_correo">Enviar correo</option>
+                <option value="follow_up">Follow-up</option>
+                <option value="citado">Citado</option>
+              </select>
+            </label>
+
+            <label class="lead-form-modal__campo">
+              <span>Fecha</span>
+              <input v-model="formulario.fecha_sub_estado" type="date" required />
+            </label>
+          </template>
+
+          <label v-if="estado === 'convertido'" class="lead-form-modal__campo">
+            <span>Fecha de convertido</span>
+            <input v-model="formulario.conversion_at" type="date" required />
           </label>
 
-          <label class="lead-form-modal__campo">
-            <span>Fecha calificado</span>
-            <input v-model="formulario.calificado_at" type="date" />
-          </label>
+          <template v-if="estado === 'rechazado'">
+            <label class="lead-form-modal__campo">
+              <span>Motivo de rechazo</span>
+              <select v-model="formulario.motivo_rechazo" required>
+                <option value="" disabled>Seleccionar...</option>
+                <option value="no_califica">No califica</option>
+                <option value="oferta_muy_cara">Ppta muy cara</option>
+                <option value="no_contesto">No contesto</option>
+                <option value="no_desea">No desea</option>
+              </select>
+            </label>
 
-          <label class="lead-form-modal__campo">
-            <span>Fecha no calificado</span>
-            <input v-model="formulario.no_calificado_at" type="date" />
-          </label>
-
-          <label class="lead-form-modal__campo">
-            <span>Fecha de visita</span>
-            <input v-model="formulario.visita_at" type="date" />
-          </label>
-
-          <label class="lead-form-modal__campo">
-            <span>Fecha de propuesta</span>
-            <input v-model="formulario.propuesta_at" type="date" />
-          </label>
-
-          <label class="lead-form-modal__campo">
-            <span>Fecha de conversión</span>
-            <input v-model="formulario.conversion_at" type="date" />
-          </label>
-
-          <label class="lead-form-modal__campo">
-            <span>Fecha de rechazo</span>
-            <input v-model="formulario.rechazo_at" type="date" />
-          </label>
+            <label class="lead-form-modal__campo">
+              <span>Fecha de rechazado</span>
+              <input v-model="formulario.rechazo_at" type="date" required />
+            </label>
+          </template>
         </div>
 
         <label class="lead-form-modal__campo lead-form-modal__campo--full">

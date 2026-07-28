@@ -10,11 +10,14 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits(['agregar-seguimiento', 'eliminar-seguimiento', 'close'])
+const emit = defineEmits(['agregar-seguimiento', 'editar-seguimiento', 'eliminar-seguimiento', 'close'])
 
 const nuevaFecha = ref(getTodayGMT5())
 const nuevoTexto = ref('')
 const errorValidacion = ref('')
+
+// Id del seguimiento que se está editando; null cuando el form está en modo alta.
+const seguimientoEnEdicionId = ref(null)
 
 const mostrarConfirmacionEliminar = ref(false)
 const seguimientoPendienteEliminar = ref(null)
@@ -39,7 +42,7 @@ function formatearFechaCompleta(fecha) {
   return `${dia}/${mes}/${parseada.getFullYear()}`
 }
 
-function agregarSeguimiento() {
+function manejarSubmitForm() {
   errorValidacion.value = ''
 
   if (!nuevaFecha.value) {
@@ -51,9 +54,31 @@ function agregarSeguimiento() {
     return
   }
 
-  emit('agregar-seguimiento', { fecha: nuevaFecha.value, texto: nuevoTexto.value.trim() })
+  if (seguimientoEnEdicionId.value) {
+    emit('editar-seguimiento', {
+      id: seguimientoEnEdicionId.value,
+      fecha: nuevaFecha.value,
+      texto: nuevoTexto.value.trim(),
+    })
+  } else {
+    emit('agregar-seguimiento', { fecha: nuevaFecha.value, texto: nuevoTexto.value.trim() })
+  }
+
+  seguimientoEnEdicionId.value = null
   nuevoTexto.value = ''
   nuevaFecha.value = getTodayGMT5()
+}
+
+function iniciarEdicion(seguimiento) {
+  seguimientoEnEdicionId.value = seguimiento.id
+  nuevaFecha.value = seguimiento.fecha
+  nuevoTexto.value = seguimiento.texto
+}
+
+function cancelarEdicion() {
+  seguimientoEnEdicionId.value = null
+  nuevaFecha.value = getTodayGMT5()
+  nuevoTexto.value = ''
 }
 
 function pedirConfirmacionEliminar(seguimiento) {
@@ -88,18 +113,27 @@ function confirmarEliminacion() {
             <strong><span class="cifra">{{ formatearFechaCompleta(seguimiento.fecha) }}</span></strong>
             <p class="seguimientos-modal__texto">{{ seguimiento.texto }}</p>
           </div>
-          <button
-            type="button"
-            class="seguimientos-modal__boton-eliminar"
-            @click="pedirConfirmacionEliminar(seguimiento)"
-          >
-            Eliminar
-          </button>
+          <div class="seguimientos-modal__item-acciones">
+            <button
+              type="button"
+              class="seguimientos-modal__boton-editar"
+              @click="iniciarEdicion(seguimiento)"
+            >
+              Editar
+            </button>
+            <button
+              type="button"
+              class="seguimientos-modal__boton-eliminar"
+              @click="pedirConfirmacionEliminar(seguimiento)"
+            >
+              Eliminar
+            </button>
+          </div>
         </li>
       </ul>
       <p v-else class="seguimientos-modal__vacio">Todavía no hay seguimientos registrados para este lead.</p>
 
-      <form class="seguimientos-modal__form" @submit.prevent="agregarSeguimiento">
+      <form class="seguimientos-modal__form" @submit.prevent="manejarSubmitForm">
         <label class="seguimientos-modal__campo">
           <span>Fecha</span>
           <input v-model="nuevaFecha" type="date" required />
@@ -111,7 +145,17 @@ function confirmarEliminacion() {
         <p v-if="errorValidacion" class="seguimientos-modal__error">{{ errorValidacion }}</p>
         <div class="seguimientos-modal__acciones">
           <button type="button" class="seguimientos-modal__boton-cerrar" @click="emit('close')">Cerrar</button>
-          <button type="submit" class="seguimientos-modal__boton-agregar">Agregar seguimiento</button>
+          <button
+            v-if="seguimientoEnEdicionId"
+            type="button"
+            class="seguimientos-modal__boton-cerrar"
+            @click="cancelarEdicion"
+          >
+            Cancelar edición
+          </button>
+          <button type="submit" class="seguimientos-modal__boton-agregar">
+            {{ seguimientoEnEdicionId ? 'Guardar cambios' : 'Agregar seguimiento' }}
+          </button>
         </div>
       </form>
     </div>
@@ -182,6 +226,23 @@ function confirmarEliminacion() {
 
 .seguimientos-modal__texto {
   margin: 0.25rem 0 0;
+}
+
+.seguimientos-modal__item-acciones {
+  flex-shrink: 0;
+  display: flex;
+  gap: 0.4rem;
+}
+
+.seguimientos-modal__boton-editar {
+  flex-shrink: 0;
+  padding: 0.3rem 0.55rem;
+  border: 1px solid #b7c3d6;
+  border-radius: 6px;
+  background: #fff;
+  color: #33507a;
+  font-size: 0.8rem;
+  cursor: pointer;
 }
 
 .seguimientos-modal__boton-eliminar {
