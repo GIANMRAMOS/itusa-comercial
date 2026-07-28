@@ -116,12 +116,12 @@ describe('SeguimientosModal', () => {
       expect(campoPorLabel(wrapperRechazado, 'Estado').element.value).toBe('rechazado')
     })
 
-    it('Sub-estado y "Fecha a contactar" por defecto reflejan los valores vigentes del lead', () => {
+    it('Sub-estado y "Prox. fecha a contactar" por defecto reflejan los valores vigentes del lead', () => {
       const wrapper = mount(SeguimientosModal, {
         props: { lead: crearLead({ sub_estado_proceso: 'follow_up', fecha_sub_estado: '2024-04-05' }) },
       })
       expect(campoPorLabel(wrapper, 'Sub-estado').element.value).toBe('follow_up')
-      expect(campoPorLabel(wrapper, 'Fecha a contactar').element.value).toBe('2024-04-05')
+      expect(campoPorLabel(wrapper, 'Prox. fecha a contactar').element.value).toBe('2024-04-05')
     })
 
     it('al elegir Estado = Convertido, se oculta Sub-estado y se muestra Fecha de convertido', async () => {
@@ -145,10 +145,19 @@ describe('SeguimientosModal', () => {
       expect(campoPorLabel(wrapper, 'Estado')).toBeUndefined()
     })
 
-    it('el campo "Describe el seguimiento" reemplaza la etiqueta "Texto"', () => {
+    it('el campo "Anotaciones" reemplaza la etiqueta "Texto"', () => {
       const wrapper = mount(SeguimientosModal, { props: { lead: crearLead() } })
-      expect(campoPorLabel(wrapper, 'Describe el seguimiento')).toBeTruthy()
+      expect(campoPorLabel(wrapper, 'Anotaciones')).toBeTruthy()
       expect(campoPorLabel(wrapper, 'Texto')).toBeUndefined()
+      expect(campoPorLabel(wrapper, 'Describe el seguimiento')).toBeUndefined()
+    })
+
+    it('Estado y Sub-estado (o Motivo de rechazo) se muestran en la misma fila', () => {
+      const wrapper = mount(SeguimientosModal, { props: { lead: crearLead() } })
+      const fila = wrapper.find('.seguimientos-modal__fila')
+      expect(fila.exists()).toBe(true)
+      expect(fila.text()).toContain('Estado')
+      expect(fila.text()).toContain('Sub-estado')
     })
   })
 

@@ -180,17 +180,17 @@ function confirmarEliminacion() {
 
       <form class="seguimientos-modal__form" @submit.prevent="manejarSubmitForm">
         <template v-if="!seguimientoEnEdicionId">
-          <label class="seguimientos-modal__campo">
-            <span>Estado</span>
-            <select v-model="estado" required>
-              <option value="proceso">En Proceso</option>
-              <option value="rechazado">Rechazado</option>
-              <option value="convertido">Convertido</option>
-            </select>
-          </label>
-
-          <template v-if="estado === 'proceso'">
+          <div class="seguimientos-modal__fila">
             <label class="seguimientos-modal__campo">
+              <span>Estado</span>
+              <select v-model="estado" required>
+                <option value="proceso">En Proceso</option>
+                <option value="rechazado">Rechazado</option>
+                <option value="convertido">Convertido</option>
+              </select>
+            </label>
+
+            <label v-if="estado === 'proceso'" class="seguimientos-modal__campo">
               <span>Sub-estado</span>
               <select v-model="subEstadoProceso" required>
                 <option value="" disabled>Seleccionar...</option>
@@ -200,19 +200,7 @@ function confirmarEliminacion() {
               </select>
             </label>
 
-            <label class="seguimientos-modal__campo">
-              <span>Fecha a contactar</span>
-              <input v-model="fechaSubEstado" type="date" required />
-            </label>
-          </template>
-
-          <label v-if="estado === 'convertido'" class="seguimientos-modal__campo">
-            <span>Fecha de convertido</span>
-            <input v-model="conversionAt" type="date" required />
-          </label>
-
-          <template v-if="estado === 'rechazado'">
-            <label class="seguimientos-modal__campo">
+            <label v-else-if="estado === 'rechazado'" class="seguimientos-modal__campo">
               <span>Motivo de rechazo</span>
               <select v-model="motivoRechazo" required>
                 <option value="" disabled>Seleccionar...</option>
@@ -221,12 +209,22 @@ function confirmarEliminacion() {
                 </option>
               </select>
             </label>
+          </div>
 
-            <label class="seguimientos-modal__campo">
-              <span>Fecha de rechazado</span>
-              <input v-model="rechazoAt" type="date" required />
-            </label>
-          </template>
+          <label v-if="estado === 'proceso'" class="seguimientos-modal__campo">
+            <span>Prox. fecha a contactar</span>
+            <input v-model="fechaSubEstado" type="date" required />
+          </label>
+
+          <label v-if="estado === 'convertido'" class="seguimientos-modal__campo">
+            <span>Fecha de convertido</span>
+            <input v-model="conversionAt" type="date" required />
+          </label>
+
+          <label v-if="estado === 'rechazado'" class="seguimientos-modal__campo">
+            <span>Fecha de rechazado</span>
+            <input v-model="rechazoAt" type="date" required />
+          </label>
         </template>
 
         <label v-else class="seguimientos-modal__campo">
@@ -235,8 +233,8 @@ function confirmarEliminacion() {
         </label>
 
         <label class="seguimientos-modal__campo seguimientos-modal__campo--texto">
-          <span>Describe el seguimiento</span>
-          <textarea v-model="nuevoTexto" rows="2" placeholder="Describí el seguimiento..."></textarea>
+          <span>Anotaciones</span>
+          <textarea v-model="nuevoTexto" rows="5" placeholder="Describí el seguimiento..."></textarea>
         </label>
         <p v-if="errorValidacion" class="seguimientos-modal__error">{{ errorValidacion }}</p>
         <div class="seguimientos-modal__acciones">
@@ -286,7 +284,7 @@ function confirmarEliminacion() {
 .seguimientos-modal__panel {
   position: relative;
   width: 100%;
-  max-width: 480px;
+  max-width: 640px;
   max-height: 85vh;
   overflow-y: auto;
   background: #fff;
@@ -363,6 +361,16 @@ function confirmarEliminacion() {
   padding-top: 1rem;
 }
 
+.seguimientos-modal__fila {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.seguimientos-modal__fila .seguimientos-modal__campo {
+  flex: 1;
+  min-width: 0;
+}
+
 .seguimientos-modal__campo {
   display: flex;
   flex-direction: column;
@@ -378,6 +386,12 @@ function confirmarEliminacion() {
   border-radius: 6px;
   font-size: 0.9rem;
   font-family: inherit;
+}
+
+.seguimientos-modal__campo--texto textarea {
+  min-height: 8rem;
+  width: 100%;
+  resize: vertical;
 }
 
 .seguimientos-modal__campo input:focus,

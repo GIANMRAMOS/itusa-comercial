@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue'
 import { getStatus } from '@/lib/leadMetrics'
 import { parseDateGMT5 } from '@/composables/useDateGMT5'
+import { OPCIONES_SUB_ESTADO_PROCESO } from '@/lib/leadEstado'
 
 const props = defineProps({
   leads: {
@@ -116,6 +117,10 @@ function seguimientosOrdenados(lead) {
 // Inicial del contacto para el avatar; con fallback cuando no hay nombre
 function inicial(lead) {
   return (lead.contact || '').trim().charAt(0).toUpperCase() || '?'
+}
+
+function etiquetaSubEstado(valor) {
+  return OPCIONES_SUB_ESTADO_PROCESO.find((opcion) => opcion.value === valor)?.label || valor
 }
 </script>
 
@@ -286,6 +291,10 @@ function inicial(lead) {
                       <span class="leads-table__estado" :class="`leads-table__estado--${getStatus(lead)}`">
                         {{ getStatus(lead) }}
                       </span>
+                    </span>
+                    <span v-if="lead.sub_estado_proceso" class="leads-table__meta-chip">
+                      <span class="leads-table__meta-etiqueta">Sub-estado</span>
+                      <span class="leads-table__meta-valor">{{ etiquetaSubEstado(lead.sub_estado_proceso) }}</span>
                     </span>
                   </div>
                   <p v-if="seguimientosOrdenados(lead).length === 0" class="leads-table__historial-vacio">

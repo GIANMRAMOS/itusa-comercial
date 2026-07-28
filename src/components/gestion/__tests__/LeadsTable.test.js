@@ -65,6 +65,28 @@ describe('LeadsTable', () => {
     expect(badge.classes()).toContain('leads-table__estado--proceso')
   })
 
+  it('muestra el chip de Sub-estado en el panel expandido cuando el lead tiene sub_estado_proceso', async () => {
+    const wrapper = mount(LeadsTable, {
+      props: { leads: [crearLead({ sub_estado_proceso: 'follow_up' })] },
+    })
+
+    await wrapper.find('.leads-table__boton-expandir').trigger('click')
+
+    const chips = wrapper.findAll('.leads-table__meta-chip')
+    const chipSubEstado = chips.find((chip) => chip.text().includes('Sub-estado'))
+    expect(chipSubEstado).toBeTruthy()
+    expect(chipSubEstado.text()).toContain('Follow-up')
+  })
+
+  it('no muestra el chip de Sub-estado cuando el lead no tiene sub_estado_proceso', async () => {
+    const wrapper = mount(LeadsTable, { props: { leads: [crearLead()] } })
+
+    await wrapper.find('.leads-table__boton-expandir').trigger('click')
+
+    const chips = wrapper.findAll('.leads-table__meta-chip')
+    expect(chips.find((chip) => chip.text().includes('Sub-estado'))).toBeUndefined()
+  })
+
   it('envuelve Factura en un span.cifra', () => {
     const wrapper = mount(LeadsTable, { props: { leads: [crearLead()] } })
 
