@@ -147,6 +147,54 @@ export function computeLast30Days(leads = []) {
   return resultado
 }
 
+// Nombres de mes en español, usados para construir las etiquetas de getRecentMonthOptions.
+const NOMBRES_MESES = [
+  'Enero',
+  'Febrero',
+  'Marzo',
+  'Abril',
+  'Mayo',
+  'Junio',
+  'Julio',
+  'Agosto',
+  'Septiembre',
+  'Octubre',
+  'Noviembre',
+  'Diciembre',
+]
+
+/**
+ * Últimos 3 meses calendario (mes actual + 2 anteriores) relativos a hoy (GMT-5),
+ * ordenados del más reciente al más antiguo. Cada opción tiene clave YYYY-MM
+ * (mismo formato que created_at.substring(0, 7) usado en computeMonthlyEvolution)
+ * y una etiqueta legible en español, ej. "Julio 2026".
+ */
+export function getRecentMonthOptions() {
+  const hoy = getCurrentDateGMT5()
+  const opciones = []
+
+  for (let i = 0; i <= 2; i++) {
+    // Día fijo en 1 para evitar el bug de overflow (ej. hoy 31/03 no debe saltear febrero).
+    const fecha = new Date(hoy.getFullYear(), hoy.getMonth() - i, 1)
+    const anio = fecha.getFullYear()
+    const mes = fecha.getMonth()
+    const clave = `${anio}-${String(mes + 1).padStart(2, '0')}`
+    const etiqueta = `${NOMBRES_MESES[mes]} ${anio}`
+    opciones.push({ clave, etiqueta })
+  }
+
+  return opciones
+}
+
+/**
+ * Filtra leads dejando solo los que tengan created_at (YYYY-MM) dentro de las claves recibidas.
+ * Sirve tanto para un mes específico (un elemento) como para "Todos" (varias claves).
+ */
+export function filterLeadsByMonthKeys(leads = [], claves = []) {
+  const clavesValidas = new Set(claves)
+  return leads.filter((lead) => lead.created_at && clavesValidas.has(lead.created_at.substring(0, 7)))
+}
+
 /**
  * Aplana los seguimientos de todos los leads en una sola lista, ordenada por fecha descendente,
  * incluyendo el contacto y la compañía del lead al que pertenecen.

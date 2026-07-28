@@ -2,7 +2,6 @@ import { defineStore } from 'pinia'
 import { supabase } from '@/lib/supabase'
 import {
   computeKPIs,
-  computeFunnel,
   computeSourceRanking,
   computeMonthlyEvolution,
   computeLast30Days,
@@ -20,11 +19,13 @@ export const useLeadsStore = defineStore('leads', {
 
   getters: {
     kpis: (state) => computeKPIs(state.leads),
-    funnel: (state) => computeFunnel(state.leads),
     sourceRanking: (state) => computeSourceRanking(state.leads),
     monthlyEvolution: (state) => computeMonthlyEvolution(state.leads),
     last30Days: (state) => computeLast30Days(state.leads),
-    latestSeguimientos: (state) => flattenLatestSeguimientos(state.leads),
+    // Límite elevado (100) para que el preset "Todo" del filtro de fecha en
+    // LatestSeguimientos.vue tenga historial real sobre el cual operar; el
+    // recorte efectivo de la lista lo hace el filtro de fecha del componente.
+    latestSeguimientos: (state) => flattenLatestSeguimientos(state.leads, 100),
   },
 
   actions: {

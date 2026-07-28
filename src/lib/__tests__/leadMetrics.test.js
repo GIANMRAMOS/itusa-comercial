@@ -8,10 +8,14 @@ vi.mock('@/composables/useDateGMT5', async (importOriginal) => {
   const actual = await importOriginal()
   return {
     ...actual,
-    getCurrentDateGMT5: () => new Date(HOY_FIJO.getTime()),
+    // vi.fn (en vez de una arrow function fija) para poder sobreescribir el "hoy" mockeado
+    // por test en los describe de getRecentMonthOptions/filterLeadsByMonthKeys más abajo,
+    // sin afectar el resto de los tests de este archivo (que siguen usando HOY_FIJO).
+    getCurrentDateGMT5: vi.fn(() => new Date(HOY_FIJO.getTime())),
   }
 })
 
+import { getCurrentDateGMT5 } from '@/composables/useDateGMT5'
 import {
   getStatus,
   getDaysInProcess,
@@ -20,6 +24,8 @@ import {
   computeSourceRanking,
   computeMonthlyEvolution,
   computeLast30Days,
+  getRecentMonthOptions,
+  filterLeadsByMonthKeys,
 } from '@/lib/leadMetrics'
 
 describe('getStatus', () => {
@@ -243,5 +249,83 @@ describe('computeLast30Days', () => {
     const resultado = computeLast30Days([])
     expect(resultado).toHaveLength(30)
     expect(resultado.every((dia) => dia.cantidad === 0)).toBe(true)
+  })
+})
+
+describe('getRecentMonthOptions', () => {
+  // Cada test fija su propio "hoy" mockeado y lo restauramos al HOY_FIJO del archivo
+  // al terminar, para no afectar a los describe que corren después de este.
+  afterEach(() => {
+    vi.mocked(getCurrentDateGMT5).mockReturnValue(new Date(HOY_FIJO.getTime()))
+  })
+
+  it('camino feliz: devuelve los últimos 3 meses (actual + 2 anteriores), más reciente primero, con clave YYYY-MM y etiqueta en español', () => {
+    vi.mocked(getCurrentDateGMT5).mockReturnValue(new Date(2026, 6, 15)) // "hoy" = 15/07/2026
+
+    expect(getRecentMonthOptions()).toEqual([
+      { clave: '2026-07', etiqueta: 'Julio 2026' },
+      { clave: '2026-06', etiqueta: 'Junio 2026' },
+      { clave: '2026-05', etiqueta: 'Mayo 2026' },
+    ])
+  })
+
+  it('borde: cruce de año — con "hoy" en enero, noviembre y diciembre salen con el año anterior correcto', () => {
+    vi.mocked(getCurrentDateGMT5).mockReturnValue(new Date(2026, 0, 15)) // "hoy" = 15/01/2026
+
+    expect(getRecentMonthOptions()).toEqual([
+      { clave: '2026-01', etiqueta: 'Enero 2026' },
+      { clave: '2025-12', etiqueta: 'Diciembre 2025' },
+      { clave: '2025-11', etiqueta: 'Noviembre 2025' },
+    ])
+  })
+
+  it('borde: con "hoy" en el día 31 de un mes, restar meses no saltea ningún mes (sin overflow de día)', () => {
+    vi.mocked(getCurrentDateGMT5).mockReturnValue(new Date(2026, 2, 31)) // "hoy" = 31/03/2026
+
+    expect(getRecentMonthOptions()).toEqual([
+      { clave: '2026-03', etiqueta: 'Marzo 2026' },
+      { clave: '2026-02', etiqueta: 'Febrero 2026' },
+      { clave: '2026-01', etiqueta: 'Enero 2026' },
+    ])
+  })
+})
+
+describe('filterLeadsByMonthKeys', () => {
+  afterEach(() => {
+    vi.mocked(getCurrentDateGMT5).mockReturnValue(new Date(HOY_FIJO.getTime()))
+  })
+
+  const leads = [
+    { id: 1, created_at: '2026-07-05' },
+    { id: 2, created_at: '2026-07-20' },
+    { id: 3, created_at: '2026-06-10' },
+    { id: 4, created_at: '2026-05-15' },
+    { id: 5, created_at: '2026-01-01' }, // fuera de los últimos 3 meses ("viejo")
+    { id: 6 }, // sin created_at
+  ]
+
+  it('camino feliz: filtrando por una sola clave de mes deja solo los leads de ese mes', () => {
+    expect(filterLeadsByMonthKeys(leads, ['2026-07'])).toEqual([
+      { id: 1, created_at: '2026-07-05' },
+      { id: 2, created_at: '2026-07-20' },
+    ])
+  })
+
+  it('camino feliz: filtrando por las 3 claves de getRecentMonthOptions da el agregado de esos meses y excluye el lead viejo', () => {
+    vi.mocked(getCurrentDateGMT5).mockReturnValue(new Date(2026, 6, 15)) // "hoy" = 15/07/2026
+    const clavesRecientes = getRecentMonthOptions().map((opcion) => opcion.clave)
+
+    const resultado = filterLeadsByMonthKeys(leads, clavesRecientes)
+
+    expect(resultado.map((l) => l.id)).toEqual([1, 2, 3, 4])
+    expect(resultado.some((l) => l.id === 5)).toBe(false) // lead viejo (2026-01) queda excluido
+  })
+
+  it('borde: claves=[] retorna un array vacío', () => {
+    expect(filterLeadsByMonthKeys(leads, [])).toEqual([])
+  })
+
+  it('borde: leads sin created_at quedan excluidos', () => {
+    expect(filterLeadsByMonthKeys([{ id: 6 }], ['2026-07'])).toEqual([])
   })
 })

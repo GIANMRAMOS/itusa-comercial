@@ -1,6 +1,7 @@
 <script setup>
 import { onMounted } from 'vue'
 import { useLeadsStore } from '@/stores/leads'
+import HeaderLegacy from '@/components/dashboard/HeaderLegacy.vue'
 import KpiCards from '@/components/dashboard/KpiCards.vue'
 import ConversionFunnel from '@/components/dashboard/ConversionFunnel.vue'
 import MonthlyEvolutionChart from '@/components/dashboard/MonthlyEvolutionChart.vue'
@@ -17,15 +18,15 @@ onMounted(() => {
 
 <template>
   <div class="dashboard">
-    <h1 class="dashboard__titulo">Dashboard</h1>
+    <HeaderLegacy :kpis="leadsStore.kpis" />
 
     <p v-if="leadsStore.error" class="dashboard__error">{{ leadsStore.error }}</p>
 
     <KpiCards :kpis="leadsStore.kpis" />
 
     <div class="dashboard__grid">
-      <ConversionFunnel :funnel="leadsStore.funnel" />
-      <TopSourcesRanking :ranking="leadsStore.sourceRanking" />
+      <LatestSeguimientos :seguimientos="leadsStore.latestSeguimientos" />
+      <ConversionFunnel :leads="leadsStore.leads" />
     </div>
 
     <div class="dashboard__grid">
@@ -33,7 +34,9 @@ onMounted(() => {
       <Last30DaysChart :datos="leadsStore.last30Days" />
     </div>
 
-    <LatestSeguimientos :seguimientos="leadsStore.latestSeguimientos" />
+    <div class="dashboard__grid">
+      <TopSourcesRanking :ranking="leadsStore.sourceRanking" />
+    </div>
   </div>
 </template>
 
@@ -45,10 +48,6 @@ onMounted(() => {
   padding: 1.5rem;
 }
 
-.dashboard__titulo {
-  margin: 0;
-}
-
 .dashboard__error {
   color: #dc2626;
   background: #fef2f2;
@@ -58,7 +57,15 @@ onMounted(() => {
 
 .dashboard__grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  grid-template-columns: 1fr 1fr;
   gap: 1.5rem;
+}
+
+/* 900px hardcodeado porque las media queries CSS no pueden leer custom properties;
+   corresponde al token --breakpoint-app-shell definido en src/styles/tokens.css. */
+@media (max-width: 900px) {
+  .dashboard__grid {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

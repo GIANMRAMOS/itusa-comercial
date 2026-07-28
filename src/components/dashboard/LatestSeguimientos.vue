@@ -1,18 +1,55 @@
 <script setup>
-defineProps({
+import { ref, computed } from 'vue'
+import { getTodayGMT5, parseDateGMT5, compareDatesGMT5 } from '@/composables/useDateGMT5'
+
+const props = defineProps({
   seguimientos: {
     type: Array,
     required: true,
   },
 })
+
+// Presets disponibles para el filtro de fecha del historial de seguimientos.
+const PRESETS = [
+  { valor: 'hoy_ayer', etiqueta: 'Hoy y ayer' },
+  { valor: 'ultimos_7_dias', etiqueta: 'Últimos 7 días' },
+  { valor: 'todo', etiqueta: 'Todo' },
+]
+
+const presetSeleccionado = ref('hoy_ayer')
+
+// Fecha límite (en GMT-5) según el preset activo. `null` significa sin límite ("Todo").
+function calcularFechaLimite(preset) {
+  const hoy = parseDateGMT5(getTodayGMT5())
+  if (preset === 'hoy_ayer') {
+    return new Date(hoy.getTime() - 1 * 24 * 60 * 60 * 1000)
+  }
+  if (preset === 'ultimos_7_dias') {
+    return new Date(hoy.getTime() - 6 * 24 * 60 * 60 * 1000)
+  }
+  return null
+}
+
+const seguimientosFiltrados = computed(() => {
+  const fechaLimite = calcularFechaLimite(presetSeleccionado.value)
+  if (!fechaLimite) return props.seguimientos
+  return props.seguimientos.filter((seguimiento) => compareDatesGMT5(seguimiento.fecha, fechaLimite) >= 0)
+})
 </script>
 
 <template>
   <section class="ultimos-seguimientos">
-    <h2 class="ultimos-seguimientos__titulo">Últimos seguimientos</h2>
-    <ul v-if="seguimientos.length" class="ultimos-seguimientos__lista">
+    <div class="ultimos-seguimientos__cabecera-seccion">
+      <h2 class="ultimos-seguimientos__titulo">Últimos seguimientos</h2>
+      <select v-model="presetSeleccionado" class="ultimos-seguimientos__filtro" aria-label="Filtrar por fecha">
+        <option v-for="preset in PRESETS" :key="preset.valor" :value="preset.valor">
+          {{ preset.etiqueta }}
+        </option>
+      </select>
+    </div>
+    <ul v-if="seguimientosFiltrados.length" class="ultimos-seguimientos__lista">
       <li
-        v-for="seguimiento in seguimientos"
+        v-for="seguimiento in seguimientosFiltrados"
         :key="`${seguimiento.leadId}-${seguimiento.fecha}-${seguimiento.texto}`"
         class="ultimos-seguimientos__item"
       >
@@ -23,7 +60,10 @@ defineProps({
         <p class="ultimos-seguimientos__texto">{{ seguimiento.texto }}</p>
       </li>
     </ul>
-    <p v-else class="ultimos-seguimientos__vacio">Sin seguimientos registrados todavía.</p>
+    <p v-else-if="!seguimientos.length" class="ultimos-seguimientos__vacio">
+      Sin seguimientos registrados todavía.
+    </p>
+    <p v-else class="ultimos-seguimientos__vacio">Sin seguimientos en este rango.</p>
   </section>
 </template>
 
@@ -36,8 +76,25 @@ defineProps({
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
-.ultimos-seguimientos__titulo {
+.ultimos-seguimientos__cabecera-seccion {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
   margin: 0 0 1rem;
+}
+
+.ultimos-seguimientos__titulo {
+  margin: 0;
+}
+
+.ultimos-seguimientos__filtro {
+  border: 1px solid var(--color-borde-tarjeta);
+  border-radius: var(--radio-tarjeta);
+  padding: 0.35rem 0.6rem;
+  font-size: 0.85rem;
+  background: #fff;
+  color: #334155;
 }
 
 .ultimos-seguimientos__lista {

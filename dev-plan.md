@@ -1,77 +1,89 @@
-# Micro-plan — Sistema de diseño "Caudal" (capa de presentación)
+# Micro-plan — Filtro de meses en el Embudo de Conversión
 
 ## Patrón arquitectónico detectado
 
-App Vue 3 (`<script setup>` + Pinia + vue-router). Verificado leyendo el código real:
-
-- **Sin CSS global hoy.** `src/main.js` no importa ningún `.css`; `index.html` no carga fuentes. No existe `src/styles/` ni `public/`. Cada componente usa exclusivamente `<style scoped>` con colores/valores hardcodeados (azul `#2d6cdf`, grises `#d0d3d9`/`#64748b`, radios `6px`/`8px`, etc.). No hay ninguna variable CSS en el proyecto todavía.
-- **Convención BEM en español** consistente: bloque `.componente`, `.componente__elemento`, `.componente__elemento--modificador` (p. ej. `leads-table__estado--convertido`, `kpi-card__valor`). El sistema Caudal encaja: la clase de cifras es `.cifra` y la variante oscura del KPI es `.kpi-card--destacada`.
-- **Capas:** `src/views/*` (Login, Dashboard, Gestion) orquestan; `src/components/{dashboard,gestion,shared}/*` presentan; `src/lib/leadMetrics.js` + `src/composables/useDateGMT5.js` son lógica pura (NO se tocan); `src/stores/*` datos (NO se tocan).
-- **Estado del lead:** `getStatus(lead)` en `leadMetrics.js` devuelve exactamente `'convertido' | 'rechazado' | 'proceso'`. Las clases de badge existentes son `leads-table__estado--{convertido|rechazado|proceso}`. Mapeo semántico Caudal directo: convertido→éxito, rechazado→error, proceso→advertencia. **No se toca la lógica**, solo el color de esas 3 clases.
-- **Tabla actual** (`LeadsTable.vue`): `overflow-x: auto` + columnas sticky izquierda/derecha (`.leads-table__col-izquierda/--derecha`). Ese es el "tratamiento sticky ya existente" que el rango 640–900px debe conservar intacto.
-- **Modales** (`LeadFormModal`, `SeguimientosModal`): misma estructura duplicada (`__fondo` overlay + `__panel` con `border-radius: 10px`, `box-shadow: 0 10px 40px`, `max-height`, `overflow-y`). Radio/sombra divergen de los tokens (`--radio-tarjeta: 18px` / `--sombra-modal`). Se unifican vía token dentro de cada scoped, NO extrayendo un componente compartido nuevo (eso sería refactor fuera de alcance).
-- **Charts** (`MonthlyEvolutionChart`, `Last30DaysChart`): render en `<canvas>` vía chart.js/vue-chartjs. Sus cifras se dibujan en canvas: **`.cifra` NO aplica ahí**. Solo se tokeniza el wrapper `<section>` y, opcionalmente, los colores de dataset dentro de `chartOptions` (por hex, chart.js no lee CSS vars).
+- **Capas**: los cálculos de negocio viven como **funciones puras** en `src/lib/leadMetrics.js` (sin acoplamiento a Supabase ni a Vue). El store Pinia (`src/stores/leads.js`) solo mantiene `leads` crudos + estado, y **delega cada métrica a un getter que llama a una función pura** (`funnel: (state) => computeFunnel(state.leads)`). `DashboardView.vue` es el contenedor que cablea getters del store a props de componentes de presentación.
+- **Fechas**: todo lo temporal pasa por `src/composables/useDateGMT5.js`. "Hoy" = `getCurrentDateGMT5()` (nunca `new Date()` suelto). El patrón para lógica dependiente de hoy ya está en `computeLast30Days`, que llama a `getCurrentDateGMT5()` **internamente** y los tests lo hacen determinista con `vi.setSystemTime` / mock del composable.
+- **Clave de mes**: el formato canónico `YYYY-MM` ya existe en `computeMonthlyEvolution`, derivado como `lead.created_at.substring(0, 7)`. Se reusa ese mismo mecanismo, no se inventa otro.
+- **Precedente directo en esta sesión**: `LatestSeguimientos.vue` ya dejó de ser 100% presentacional: recibe datos crudos (`seguimientos`) y filtra internamente por rango de fecha con un `<select v-model>` de presets, un `ref` para la selección y un `computed` que aplica el filtro. Este plan replica exactamente ese patrón (select + ref + computed que llama a una función pura existente sobre el subconjunto filtrado).
 
 ## Desviación de arquitectura
 
 - **¿Se necesita desviarse? NO.**
-- Es estrictamente capa de presentación: un archivo de tokens nuevo (aditivo), un import en `main.js`, y reemplazo de valores CSS hardcodeados por `var(--token)` dentro de `<style scoped>` existentes. Dos cambios de layout responsive (nav en `App.vue`, tabla→tarjetas en `LeadsTable.vue`) que modifican solo CSS/markup de presentación, sin tocar props, emits, stores ni lógica de negocio.
-- No cambia el modelo de datos, no introduce patrón arquitectónico nuevo, no acopla módulos entre sí. **GATE 1 no se dispara.**
-- Único artefacto nuevo: `src/styles/tokens.css` + `public/fonts/` — infra de estilos estándar, no arquitectura de aplicación.
+- El cambio **no introduce un patrón nuevo**: es una extensión consistente del patrón "componente recibe datos crudos y computa su métrica filtrada internamente con una función pura existente", ya autorizado y **ya aplicado a `LatestSeguimientos.vue`** en esta misma sesión. No cambia el modelo de datos (misma tabla `leads`, mismo `created_at`, misma clave `YYYY-MM`). No cambia el contrato de Supabase.
+- **¿Dispara GATE 1? NO** — pero no lo minimizo: no es un cambio de un solo archivo, es un cambio **coordinado sobre 4 archivos de producción** que deben ir juntos porque rompen un contrato de prop y dejan un getter huérfano. La razón por la que NO es GATE 1: (a) la decisión de arquitectura ya fue autorizada por el orquestador; (b) el patrón ya está establecido en el codebase (precedente `LatestSeguimientos`), o sea es "seguir el patrón", no "desviarse de él"; (c) no toca el modelo de datos. Si este precedente **no** existiera, un cambio de contrato de props + getter huérfano sí lo evaluaría como estructural y dispararía GATE 1. Queda registrado explícitamente para revisión.
+
+### Impacto exacto confirmado
+
+1. **Prop de `ConversionFunnel.vue`**: hoy es `funnel: Array` (funnel ya calculado). Pasa a ser `leads: Array` (leads crudos). El componente computa el funnel filtrado internamente. **Es un breaking change del contrato de props** de este componente.
+2. **Lo que pasa `DashboardView.vue`**: hoy `:funnel="leadsStore.funnel"`. Pasa a `:leads="leadsStore.leads"`.
+3. **Getter `funnel` del store**: confirmado por grep que su **único** consumidor es `DashboardView.vue:29`. No lo usa ningún otro componente ni test (el store test no lo referencia). Tras el cambio queda **huérfano**. Decisión: **eliminar el getter `funnel` de `src/stores/leads.js`** y quitar `computeFunnel` de su import (que solo se usa en ese getter). `computeFunnel` **permanece** exportado en `leadMetrics.js` porque ahora lo consume el componente y sigue cubierto por su test unitario. No dejar el getter muerto.
+4. **Helpers puros nuevos en `leadMetrics.js`**: SÍ hacen falta dos, para no meter cálculo en el `.vue`:
+   - `getRecentMonthOptions()` — genera las 3 claves/etiquetas de mes relativas a hoy.
+   - `filterLeadsByMonthKeys(leads, claves)` — filtra leads por una o varias claves `YYYY-MM`. Un solo helper cubre tanto "mes específico" (un elemento) como "Todos" (los 3), reusando `substring(0, 7)` igual que `computeMonthlyEvolution`.
 
 ## Archivos a crear/modificar
 
-### FASE 1 — bloqueante, en orden estricto (cada paso habilita al siguiente)
+> Los 4 archivos de producción están **acoplados y NO se paralelizan entre sí** (contrato de prop + getter). El chunk de helpers en `leadMetrics.js` SÍ puede construirse y testearse primero de forma independiente antes de tocar el componente.
 
-1. `public/fonts/*.woff2` — **crear** — descargar de Google Fonts si no existen localmente: DM Sans 400, DM Sans 800, IBM Plex Mono 600. La carpeta `public/` no existe aún: crearla.
-2. `src/styles/tokens.css` — **crear** — carpeta `src/styles/` no existe aún. Contenido en este orden: (a) `@font-face` self-hosted apuntando a `/fonts/*.woff2` con `font-display: swap`; (b) el bloque `:root` **exacto** provisto (no modificar valores); (c) reset mínimo (`*,*::before,*::after{box-sizing:border-box}`, `body{margin:0}`); (d) base de `body`: `font-family: var(--fuente-base)`, `font-size: var(--tamano-base)`, `line-height: var(--interlineado)`, `color: var(--color-texto)`, `background: var(--color-fondo-app)`; (e) utilitaria global `.cifra { font-family: var(--fuente-mono); font-variant-numeric: tabular-nums; }`. **`.cifra` debe ser global (no scoped)** para usarse en cualquier componente.
-3. `src/main.js` — **modificar** — añadir `import '@/styles/tokens.css'` antes de montar. Única línea que cambia.
-4. `src/App.vue` — **modificar** — nav restyle. `.barra-navegacion`: horizontal arriba en ≥900px (`--breakpoint-app-shell`); en <900px pasa a barra inferior fija (`position: fixed; bottom: 0; left/right: 0`), sin sidebar. Tokenizar borde (`--color-borde`), texto y activo (`--color-primario` / peso 800). Solo 2 destinos + logout. Añadir `padding-bottom` al contenido en móvil para no quedar tapado por la barra fija.
-5. `src/components/gestion/LeadsTable.vue` — **modificar** — (a) responsive tabla→tarjetas <640px (`--breakpoint-tabla`): `thead` oculto, `tr.leads-table__fila` a `display:block` con estilo tarjeta (`--radio-tarjeta`, `--color-borde-tarjeta`, gap), cada `td` a `display:block` con `td::before { content: attr(data-label) }`. Requiere **añadir atributo `data-label` a cada `<td>`** de la fila principal: `Fuente, Contacto, Empresa, Correo, Teléfono, Creación, Estado, Factura, Días en proceso, Acciones`. (b) 640–900px: **NO tocar** el sticky existente. (c) badges: recolorear `--convertido`→`--color-exito`/`--color-exito-fondo`, `--rechazado`→`--color-error`/fondo, `--proceso`→`--color-advertencia`/fondo. (d) envolver en `<span class="cifra">` la Factura, la fecha de Creación y Días en proceso (solo la cifra, no labels/teléfono/correo). Tokenizar bordes/inputs/botones.
+- `src/lib/leadMetrics.js` — **modificar** — agregar dos funciones puras exportadas (sin tocar las existentes):
+  - `getRecentMonthOptions()`: usa `getCurrentDateGMT5()` internamente (mismo patrón que `computeLast30Days`; queda determinista bajo `vi.setSystemTime`). Devuelve **3 opciones** = mes actual + los 2 meses anteriores, ordenadas **más reciente primero**. Forma: `[{ clave: 'YYYY-MM', etiqueta: 'Julio 2026' }, ...]`.
+    - Construir cada mes como `new Date(hoy.getFullYear(), hoy.getMonth() - i, 1)` para `i = 0,1,2`. **Usar día 1 fijo**: evita el bug de overflow (ej. hoy 31/03 → restar un mes no debe saltear febrero) y JS normaliza el cruce de año (`mes - i` negativo → año anterior).
+    - `clave` = `` `${año}-${String(mes+1).padStart(2,'0')}` `` (mismo formato que `created_at.substring(0,7)`).
+    - `etiqueta` = nombre de mes en español capitalizado + año, con un array local de nombres `['Enero', ..., 'Diciembre']`.
+  - `filterLeadsByMonthKeys(leads = [], claves = [])`: devuelve los leads cuyo `lead.created_at?.substring(0, 7)` está incluido en `claves`. Aceptar `claves` como array (normalizar a `Set` internamente). Excluir leads sin `created_at`. Si `claves` viene vacío → devolver `[]`.
 
-### FASE 2 — en paralelo (chunks independientes, sin solape entre sí; todos dependen solo de FASE 1 completa)
+- `src/components/dashboard/ConversionFunnel.vue` — **modificar** — cambiar prop `funnel` → `leads: { type: Array, required: true }`; importar `computeFunnel`, `getRecentMonthOptions`, `filterLeadsByMonthKeys` y `ref`/`computed` de vue. Agregar:
+  - `const opcionesMes = getRecentMonthOptions()` (las 3 opciones de mes).
+  - `const mesSeleccionado = ref('todos')` (default "Todos").
+  - `<select v-model="mesSeleccionado">` en la cabecera con `<option value="todos">Todos</option>` + una option por cada opción de mes (`:value="op.clave"`, texto `op.etiqueta`). Espejar markup/estilo del select de `LatestSeguimientos.vue` (clases propias de `.embudo`, `aria-label`).
+  - `const funnel = computed(() => { const claves = mesSeleccionado.value === 'todos' ? opcionesMes.map(o => o.clave) : [mesSeleccionado.value]; return computeFunnel(filterLeadsByMonthKeys(props.leads, claves)) })`.
+  - El `v-for` del template sigue iterando `funnel` (ahora computed). Las funciones de presentación (`obtenerIcono`, `obtenerClaseRango`, `obtenerDetalle`) **no cambian**.
+  - Orden de opciones sugerido: los 3 meses (más reciente primero) y luego "Todos" (espeja a `LatestSeguimientos` donde "Todo" va último). El default es `'todos'` independientemente de la posición.
 
-- **Chunk A** `src/components/dashboard/KpiCards.vue` — los 7 `<span class="kpi-card__valor">` reciben además la clase `cifra`. La tarjeta "Total facturado" (última) recibe `kpi-card--destacada` (fondo `--color-primario`, texto claro). Tokenizar fondo/radio (`--radio-tarjeta`)/sombra del resto.
-- **Chunk B** `src/components/gestion/LeadFormModal.vue` — `__panel`: `border-radius: var(--radio-tarjeta)` + `box-shadow: var(--sombra-modal)`. Inputs/textarea: borde `--color-borde` y foco visible `:focus { border-color: var(--color-borde-foco); box-shadow: var(--sombra-foco); outline: none }`. Botón guardar → `--color-primario`/hover. Error → `--color-error`. El campo Factura es un `<input type=number>` editable: NO forzar `.cifra` (la regla `.cifra` es para cifras mostradas, no inputs).
-- **Chunk C** `src/components/gestion/SeguimientosModal.vue` — mismo tratamiento de `__panel` (`--radio-tarjeta` + `--sombra-modal`) y foco visible en inputs/textarea. Botón agregar → `--color-primario`. Tokenizar bordes de items/error. Las fechas listadas (`formatearFechaCompleta`) van en `.cifra`; el texto de la nota NO.
-- **Chunk D** `src/components/gestion/AddLeadButton.vue` — FAB: fondo `--color-primario` / hover `--color-primario-hover`, `box-shadow: var(--sombra-flotante)`. Sin `.cifra`. En móvil, subir `bottom` para no colisionar con la barra inferior fija del nav.
-- **Chunk E** `src/components/dashboard/ConversionFunnel.vue` — wrapper con `--radio-tarjeta`/borde/sombra; barra-relleno con `--color-primario`; `.embudo__valor` y los porcentajes de `__detalle` en `.cifra`. Nombres de paso NO.
-- **Chunk F** `src/components/dashboard/MonthlyEvolutionChart.vue` — wrapper tokenizado (radio/borde/sombra) + título con tipografía base. Cifras en canvas → `.cifra` NO aplica. Opcional-alineado: `backgroundColor` del dataset de `#2563eb` a `--color-primario` (`#1a1a18`) por hex directo en JS.
-- **Chunk G** `src/components/dashboard/Last30DaysChart.vue` — igual que F. Opcional: verde `#16a34a` → `--color-exito` `#3a9d6b` por hex directo.
-- **Chunk H** `src/components/dashboard/TopSourcesRanking.vue` — wrapper tokenizado; `.ranking-fuentes__cantidad` en `.cifra` (color `--color-primario` en vez de azul). Nombre de fuente NO.
-- **Chunk I** `src/components/dashboard/LatestSeguimientos.vue` — wrapper/bordes tokenizados; `.ultimos-seguimientos__fecha` en `.cifra`. Contacto/empresa/texto NO.
-- **Chunk J** `src/views/LoginView.vue` — form con `--radio-tarjeta`, borde/sombra; inputs con foco visible (`--sombra-foco`); botón `--color-primario`; `max-width: var(--ancho-maximo-formulario)` (400px); error `--color-error`. Sin cifras.
-- **Chunk K** `src/components/shared/LoadingOverlay.vue` — spinner: `border-top-color: var(--color-primario)`, borde base `--color-borde`; overlay tokenizado. Sin cifras.
-- **Chunk L** `src/components/shared/ConfirmDialog.vue` — caja con `--radio-tarjeta` + `--sombra-modal`; botón confirmar (destructivo) con `--color-error`; cancelar con fondo neutro tokenizado. Sin cifras.
+- `src/views/DashboardView.vue` — **modificar** — línea 29: `<ConversionFunnel :funnel="leadsStore.funnel" />` → `<ConversionFunnel :leads="leadsStore.leads" />`.
 
-**Fuera de alcance (sugerencia aparte, NO incluir en el plan):** extraer la estructura duplicada overlay/panel de los dos modales a un `BaseModal` compartido. Es refactor válido pero no es la capa de presentación pedida.
+- `src/stores/leads.js` — **modificar** — eliminar el getter `funnel` (línea 23) y quitar `computeFunnel` del import (líneas 3-10), ya que su único uso era ese getter. No tocar los demás getters.
 
-## Plan de pruebas
+### Tests a modificar/crear (obligatorios, ver plan abajo)
 
-### Verificable con Vitest + @vue/test-utils (unitario, para dev-tester)
+- `src/lib/__tests__/leadMetrics.test.js` — **modificar** — agregar bloques `describe` para `getRecentMonthOptions` y `filterLeadsByMonthKeys`. Nota: el archivo ya mockea `getCurrentDateGMT5` a una fecha fija (31/01/2026); los tests nuevos de `getRecentMonthOptions` deben controlar la fecha con `vi.setSystemTime` en sus propios bloques (o ajustar el mock) para cubrir varias fechas de referencia.
+- `src/components/dashboard/__tests__/ConversionFunnel.test.js` — **reescribir** — hoy monta con prop `funnel` ya calculado; debe pasar a montar con prop `leads` crudos y ejercitar el filtro + el cálculo. El comentario de cabecera (líneas 5-7) que dice "el cálculo no cambia en esta tarea" queda desactualizado y debe reescribirse.
+- `src/stores/__tests__/leads.test.js` — **verificar** — no referencia `funnel` (confirmado por grep); no requiere cambios salvo, opcionalmente, un test que afirme que el store ya no expone `funnel`.
+- `src/__tests__/App.test.js` / `DashboardView` — **verificar** que no dependan del prop viejo (no montan `ConversionFunnel` con `funnel` directo; el cambio de `DashboardView` es solo el nombre del prop cableado).
 
-- **KpiCards** (extender `src/components/dashboard/__tests__/KpiCards.test.js`, ya existe):
-  - Los 7 `.kpi-card__valor` tienen también la clase `cifra` (`findAll('.cifra').length >= 7`).
-  - La tarjeta "Total facturado" (última `.kpi-card`) tiene `kpi-card--destacada`; las otras 6 NO.
-  - Regresión: los asserts existentes (`$500`, `20%`, `99` reactivo) siguen pasando — `.cifra` no cambia el texto renderizado.
-- **LeadsTable** (test nuevo `src/components/gestion/__tests__/LeadsTable.test.js`):
-  - Camino feliz: con un lead mock, cada `<td>` de datos expone el `data-label` correcto (`Fuente`, `Contacto`, `Empresa`, `Correo`, `Teléfono`, `Creación`, `Estado`, `Factura`, `Días en proceso`, `Acciones`) vía `attributes('data-label')`.
-  - Badge: lead con `conversion_at` → clase `leads-table__estado--convertido`; con `rechazo_at` (sin conversión) → `--rechazado`; sin ninguno → `--proceso`. Valida el mapeo semántico sin depender del color.
-  - Factura, fecha de Creación y Días en proceso se renderizan dentro de un `<span class="cifra">`.
-  - Borde: `leads` vacío → fila "No hay leads..." (comportamiento existente intacto).
-  - Borde: búsqueda sin match → 0 filas de datos + mensaje sin-resultados.
-- **ConfirmDialog / LoadingOverlay** (ConfirmDialog ya tiene test): siguen montando y emitiendo `confirm`/`cancel` tras el restyle (regresión).
-- **Regresión global:** correr toda la suite (`leadMetrics`, `useDateGMT5`, stores, ConfirmDialog). Ningún cambio toca lógica → deben seguir verdes.
+## Plan de pruebas (para dev-tester)
 
-### Fuera del alcance de tests unitarios (verificación manual en navegador)
+Foco explícito: probar el **CÁLCULO real** sobre leads mock con fechas en distintos meses, no solo el render.
 
-- **Colapso real** tabla→tarjetas a <640px (p. ej. 375px): jsdom no calcula media queries ni layout. El test solo garantiza `data-label`/markup; que el `::before` se vea y el `thead` se oculte se valida en DevTools responsive.
-- **Nav:** horizontal ≥900px vs barra inferior fija <900px (media query) — visual. Que la barra fija no tape contenido ni colisione con el FAB de AddLeadButton.
-- **Foco visible** (`--sombra-foco`) en inputs de modales/login al tabular.
-- Carga/render de las **fuentes self-hosted** y que `.cifra` use realmente IBM Plex Mono con `tabular-nums` — visual + Network tab.
-- **Colores de los charts** (canvas) — visual; sin DOM inspeccionable de las cifras internas.
-- Contraste de **`.kpi-card--destacada`** (texto claro sobre `--color-primario`) — visual/accesibilidad.
+### A. Helpers puros — `leadMetrics.test.js` (con `vi.useFakeTimers()` + `vi.setSystemTime`)
 
-### Criterios de aceptación (HU)
+`getRecentMonthOptions()`:
+- **Camino feliz**: con `vi.setSystemTime(new Date(2026, 6, 27))` (27/07/2026) → devuelve exactamente 3 opciones con `clave` `['2026-07', '2026-06', '2026-05']` y `etiqueta` `['Julio 2026', 'Junio 2026', 'Mayo 2026']`, en ese orden (más reciente primero).
+- **Borde cruce de año**: con `vi.setSystemTime(new Date(2026, 0, 15))` (15/01/2026) → claves `['2026-01', '2025-12', '2025-11']` y etiquetas `['Enero 2026', 'Diciembre 2025', 'Noviembre 2025']`.
+- **Borde overflow de día**: con `vi.setSystemTime(new Date(2026, 2, 31))` (31/03/2026) → claves `['2026-03', '2026-02', '2026-01']` (NO debe saltearse febrero por el día 31).
 
-No se recibieron HU con escenarios Gherkin del ProductOwner para esta tarea (es una capa de diseño con decisiones de UX ya cerradas). Si llegan, cada escenario se mapea 1:1 a un caso adicional. **Ausencia declarada, no asumida.**
+`filterLeadsByMonthKeys(leads, claves)`:
+- Set mock de leads con `created_at` en varios meses (ej. dos en `2026-07`, uno en `2026-06`, uno en `2026-05`, uno en `2026-03`, y uno **sin** `created_at`).
+- **Mes específico**: filtrar por `['2026-07']` → devuelve solo los 2 leads de julio.
+- **Unión (Todos)**: filtrar por `['2026-07','2026-06','2026-05']` → devuelve los 4 leads de esos meses y **excluye** el de `2026-03` (histórico más viejo) y el que no tiene `created_at`.
+- **Borde**: `claves = []` → devuelve `[]`. Lead con `created_at` nulo/ausente → nunca incluido.
+
+### B. Componente — `ConversionFunnel.test.js` (montar con prop `leads`)
+
+Construir leads mock con `created_at` en `2026-07`, `2026-06`, `2026-05` y `2026-03`, con distintos flags de etapa (`contactado_at`, `calificado_at`, `visita_at`, `conversion_at`) de modo que el conteo por etapa sea verificable. Usar `vi.setSystemTime(new Date(2026, 6, 27))` para fijar las opciones de mes.
+
+- **Default "Todos"**: al montar, `select.value === 'todos'`; el funnel renderizado corresponde a `computeFunnel` sobre la **unión de los 3 meses recientes**, y **excluye** los leads de `2026-03`. Verificar los `.embudo__valor` esperados.
+- **Mes específico**: `await select.setValue('2026-06')` → el funnel se recalcula solo con los leads de junio; verificar que los `.embudo__valor` reflejan únicamente ese subconjunto (distintos de los de "Todos").
+- **Opciones del select**: hay exactamente 4 options; las 3 de mes tienen etiquetas `Julio 2026 / Junio 2026 / Mayo 2026` + la de "Todos".
+- **Borde: mes sin leads**: seleccionar un mes cuyo subconjunto quede vacío → el funnel renderiza las 4 etapas en `0` sin romper (los porcentajes usan la guarda `totalLeads > 0` ya existente en `computeFunnel`).
+- **Presentación preservada** (regresión del comportamiento actual, ahora derivado del computed): íconos correctos por etapa (los 4 emojis del mapa), clases `rank-1/2/3/other` por posición, copy `"% del total"` solo en la primera etapa y `"% de conversión"` en el resto, y `.embudo__valor` con clase `.cifra`.
+
+### C. Store — `leads.test.js`
+- (Opcional) Afirmar que `useLeadsStore()` ya no expone `funnel`, dejando constancia de que el getter se eliminó a propósito y no quedó huérfano.
+
+---
+
+## Sugerencias fuera de alcance (NO implementar en esta tarea)
+- El array de nombres de meses en español queda hoy local en `leadMetrics.js`. Si a futuro aparece i18n, ese array debería centralizarse en `useDateGMT5.js` (hogar de la lógica de fechas). Para esta tarea, mantenerlo local es consistente con el alcance.
+- `MonthlyEvolutionChart` también usa claves `YYYY-MM`; si en el futuro se quisiera unificar la generación de claves de mes desde un `Date`, `getRecentMonthOptions` sería el punto natural para extraer un helper `monthKeyFromDate`. No hace falta ahora.
