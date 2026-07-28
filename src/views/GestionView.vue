@@ -84,6 +84,10 @@ async function eliminarSeguimiento(seguimientoId) {
   if (!leadSeguimientos.value) return
   await leadsStore.deleteSeguimiento(seguimientoId, leadSeguimientos.value.id)
 }
+
+async function archivarLead(lead) {
+  await leadsStore.archivarLead(lead.id)
+}
 </script>
 
 <template>
@@ -97,9 +101,11 @@ async function eliminarSeguimiento(seguimientoId) {
 
     <LeadsTable
       :leads="leadsStore.leads"
+      :mostrar-archivar="true"
       @editar-lead="abrirEdicionLead"
       @eliminar-lead="pedirConfirmacionEliminar"
       @abrir-seguimientos="abrirSeguimientos"
+      @archivar-lead="archivarLead"
     />
 
     <AddLeadButton @click="abrirAltaLead" />

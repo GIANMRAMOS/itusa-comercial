@@ -23,6 +23,7 @@ async function cerrarSesion() {
     <span class="barra-navegacion__marca">ITUSA Comercial</span>
     <router-link to="/dashboard">Dashboard</router-link>
     <router-link to="/gestion">Gestión</router-link>
+    <router-link to="/archivados">Archivados</router-link>
     <span class="barra-navegacion__email">{{ authStore.user?.email }}</span>
     <button type="button" class="barra-navegacion__cerrar-sesion" @click="cerrarSesion">Cerrar sesión</button>
     <span class="barra-navegacion__version">v{{ version }}</span>

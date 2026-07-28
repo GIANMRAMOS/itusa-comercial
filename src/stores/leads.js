@@ -13,6 +13,7 @@ import {
 export const useLeadsStore = defineStore('leads', {
   state: () => ({
     leads: [],
+    leadsArchivados: [],
     loading: false,
     error: null,
   }),
@@ -36,6 +37,7 @@ export const useLeadsStore = defineStore('leads', {
         const { data, error } = await supabase
           .from('leads')
           .select('*, seguimientos(*)')
+          .eq('archivado', false)
           .order('created_at', { ascending: false })
 
         if (error) {
@@ -43,6 +45,28 @@ export const useLeadsStore = defineStore('leads', {
           return
         }
         this.leads = data ?? []
+      } catch (error) {
+        this.error = error.message
+      } finally {
+        this.loading = false
+      }
+    },
+
+    async fetchLeadsArchivados() {
+      this.loading = true
+      this.error = null
+      try {
+        const { data, error } = await supabase
+          .from('leads')
+          .select('*, seguimientos(*)')
+          .eq('archivado', true)
+          .order('created_at', { ascending: false })
+
+        if (error) {
+          this.error = error.message
+          return
+        }
+        this.leadsArchivados = data ?? []
       } catch (error) {
         this.error = error.message
       } finally {
@@ -99,6 +123,38 @@ export const useLeadsStore = defineStore('leads', {
           return { success: false, error: error.message }
         }
         this.leads = this.leads.filter((lead) => lead.id !== leadId)
+        return { success: true }
+      } catch (error) {
+        this.error = error.message
+        return { success: false, error: error.message }
+      }
+    },
+
+    async archivarLead(leadId) {
+      this.error = null
+      try {
+        const { error } = await supabase.from('leads').update({ archivado: true }).eq('id', leadId)
+        if (error) {
+          this.error = error.message
+          return { success: false, error: error.message }
+        }
+        this.leads = this.leads.filter((lead) => lead.id !== leadId)
+        return { success: true }
+      } catch (error) {
+        this.error = error.message
+        return { success: false, error: error.message }
+      }
+    },
+
+    async reactivarLead(leadId) {
+      this.error = null
+      try {
+        const { error } = await supabase.from('leads').update({ archivado: false }).eq('id', leadId)
+        if (error) {
+          this.error = error.message
+          return { success: false, error: error.message }
+        }
+        this.leadsArchivados = this.leadsArchivados.filter((lead) => lead.id !== leadId)
         return { success: true }
       } catch (error) {
         this.error = error.message

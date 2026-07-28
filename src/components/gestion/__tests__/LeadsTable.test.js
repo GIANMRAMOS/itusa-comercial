@@ -237,4 +237,98 @@ describe('LeadsTable', () => {
       expect(filas[2].classes()).toContain('leads-table__fila--proceso')
     })
   })
+
+  describe('prop mostrarArchivar', () => {
+    it('con mostrarArchivar=true, existe el botón Archivar con aria-label correcto y emite archivar-lead con el lead completo', async () => {
+      const lead = crearLead({ contact: 'Juan Pérez' })
+      const wrapper = mount(LeadsTable, { props: { leads: [lead], mostrarArchivar: true } })
+
+      const botonArchivar = wrapper.find('.leads-table__boton-archivar')
+      expect(botonArchivar.exists()).toBe(true)
+      const ariaLabel = botonArchivar.attributes('aria-label')
+      expect(ariaLabel.trim().length).toBeGreaterThan(0)
+      expect(ariaLabel).toContain('Archivar')
+      expect(ariaLabel).toContain('Juan Pérez')
+
+      await botonArchivar.trigger('click')
+
+      const emitido = wrapper.emitted('archivar-lead')
+      expect(emitido).toBeTruthy()
+      expect(emitido[0][0]).toEqual(lead)
+    })
+
+    it('con mostrarArchivar=false (default), el botón Archivar no existe', () => {
+      const wrapper = mount(LeadsTable, { props: { leads: [crearLead()] } })
+      expect(wrapper.find('.leads-table__boton-archivar').exists()).toBe(false)
+    })
+  })
+
+  describe('prop mostrarReactivar (vista Archivados: solo Reactivar, sin Editar/Eliminar)', () => {
+    function montarSoloReactivar(overrides = {}) {
+      return mount(LeadsTable, {
+        props: {
+          leads: [crearLead({ contact: 'Ana López', ...overrides })],
+          mostrarEditar: false,
+          mostrarEliminar: false,
+          mostrarArchivar: false,
+          mostrarReactivar: true,
+        },
+      })
+    }
+
+    it('Acciones tiene SOLO el botón Reactivar (Editar/Eliminar/Archivar ausentes)', () => {
+      const wrapper = montarSoloReactivar()
+
+      const botonesAcciones = wrapper.find('.leads-table__acciones').findAll('button')
+      expect(botonesAcciones.length).toBe(1)
+      expect(wrapper.find('.leads-table__boton-reactivar').exists()).toBe(true)
+      expect(wrapper.find('.leads-table__boton-eliminar').exists()).toBe(false)
+      expect(wrapper.find('.leads-table__boton-archivar').exists()).toBe(false)
+    })
+
+    it('el aria-label del botón Reactivar no está vacío, contiene "Reactivar" y el click emite reactivar-lead con el lead', async () => {
+      const wrapper = montarSoloReactivar()
+      const botonReactivar = wrapper.find('.leads-table__boton-reactivar')
+
+      const ariaLabel = botonReactivar.attributes('aria-label')
+      expect(ariaLabel.trim().length).toBeGreaterThan(0)
+      expect(ariaLabel).toContain('Reactivar')
+      expect(ariaLabel).toContain('Ana López')
+
+      await botonReactivar.trigger('click')
+
+      const emitido = wrapper.emitted('reactivar-lead')
+      expect(emitido).toBeTruthy()
+      const leadEmitido = emitido[0][0]
+      expect(leadEmitido.contact).toBe('Ana López')
+    })
+  })
+
+  describe('prop permitirAgregarSeguimiento', () => {
+    it('permitirAgregarSeguimiento=false: el historial se renderiza pero el botón "Agregar seguimiento" no existe', async () => {
+      const lead = crearLead({
+        seguimientos: [{ id: 1, fecha: '2024-01-01T00:00:00.000Z', texto: 'Primero' }],
+      })
+      const wrapper = mount(LeadsTable, { props: { leads: [lead], permitirAgregarSeguimiento: false } })
+
+      await wrapper.find('.leads-table__boton-expandir').trigger('click')
+
+      expect(wrapper.find('.leads-table__historial-titulo').exists()).toBe(true)
+      expect(wrapper.find('.leads-table__historial-titulo').text()).toBe('Historial de seguimientos')
+      expect(wrapper.find('.leads-table__historial-contador').text()).toBe('1')
+      expect(wrapper.find('.leads-table__historial-lista').exists()).toBe(true)
+
+      expect(wrapper.find('.leads-table__historial-cabecera .leads-table__boton-icono').exists()).toBe(false)
+      expect(wrapper.emitted('abrir-seguimientos')).toBeUndefined()
+    })
+
+    it('permitirAgregarSeguimiento=true (default, sin pasar la prop): el botón "Agregar seguimiento" sigue existiendo', async () => {
+      const wrapper = mount(LeadsTable, { props: { leads: [crearLead()] } })
+
+      await wrapper.find('.leads-table__boton-expandir').trigger('click')
+
+      const botonSeguimiento = wrapper.find('.leads-table__historial-cabecera .leads-table__boton-icono')
+      expect(botonSeguimiento.exists()).toBe(true)
+    })
+  })
 })

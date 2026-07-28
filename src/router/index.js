@@ -21,6 +21,12 @@ const routes = [
     component: () => import('@/views/GestionView.vue'),
     meta: { requiresAuth: true },
   },
+  {
+    path: '/archivados',
+    name: 'archivados',
+    component: () => import('@/views/ArchivadosView.vue'),
+    meta: { requiresAuth: true },
+  },
 ]
 
 const router = createRouter({

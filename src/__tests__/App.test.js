@@ -90,12 +90,13 @@ describe('App.vue - navegación', () => {
       expect(wrapper.find('.barra-navegacion__version').text()).toBe(`v${__APP_VERSION__}`)
     })
 
-    it('los router-link apuntan a /dashboard y /gestion', () => {
+    it('los router-link apuntan a /dashboard, /gestion y /archivados', () => {
       const { wrapper } = montarAutenticado()
       const links = wrapper.findAll('a')
       const destinos = links.map((link) => link.attributes('href'))
       expect(destinos).toContain('/dashboard')
       expect(destinos).toContain('/gestion')
+      expect(destinos).toContain('/archivados')
     })
 
     it('al hacer click en "Cerrar sesión" invoca authStore.signOut y router.push("/login")', async () => {

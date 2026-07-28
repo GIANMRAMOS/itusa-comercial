@@ -1,163 +1,208 @@
-# Micro-plan — Rediseño de `LeadsTable.vue`
+# Micro-plan — Épica "Archivado de leads" (HU-1 + HU-2)
 
 ## Patrón arquitectónico detectado
 
-- **Vista contenedora**: `src/views/GestionView.vue` es el "smart component". Tiene el store
-  (`useLeadsStore`), maneja modales (`LeadFormModal`, `SeguimientosModal`, `ConfirmDialog`) y traduce
-  eventos de `LeadsTable` a acciones. `LeadsTable` es "presentacional": recibe `leads` por prop y
-  emite intención hacia arriba; no conoce el store ni abre modales por sí mismo.
-- **Contrato actual de `LeadsTable.vue`** (confirmado leyendo el archivo, no asumido):
-  - Props: `leads: Array` (única prop).
-  - Emits: `editar-lead`, `eliminar-lead`, `abrir-seguimientos` — los tres emiten el objeto `lead` completo.
-  - `GestionView` los escucha en las líneas 98-103: `@editar-lead="abrirEdicionLead"`,
-    `@eliminar-lead="pedirConfirmacionEliminar"`, `@abrir-seguimientos="abrirSeguimientos"`.
-- **Estado local del componente**: `busqueda` (ref) y `leadExpandidoId` (ref). Expandir es estado de
-  UI propio, una fila expandida a la vez vía `alternarExpandido(leadId)`.
-- **Métricas**: `getStatus(lead)` y `getDaysInProcess(lead)` vienen de `@/lib/leadMetrics` (funciones
-  puras). `getStatus` devuelve exactamente `'convertido' | 'rechazado' | 'proceso'`
-  (precedencia conversion_at > rechazo_at > proceso). NO se toca.
-- **Sistema de diseño**: tokens en `src/styles/tokens.css`, confirmados y disponibles:
-  `--color-primario (#1a1a18)`, `--color-texto (#1a1a18)`, `--color-borde-tarjeta (#f0eeea)`,
-  `--color-exito (#3a9d6b)`, `--color-error (#d9573f)`, `--color-advertencia (#ff9500)` y sus
-  `*-fondo`. La clase global `.cifra` existe (tokens.css:88) y `.cifra--ingreso` (línea 94).
-- **Convención de nombres**: BEM en español con prefijo `leads-table__`. El badge de estado ya usa el
-  sufijo devuelto por `getStatus` (`__estado--convertido/--rechazado/--proceso`); ese mismo patrón de
-  sufijo se reutiliza para la franja izquierda.
-- **Responsive ya establecido (se conserva idéntico, no se toca)**: tabla completa ≥900px, sticky de
-  columnas izquierda/derecha en 640-900px (vía `overflow-x:auto` + `position:sticky` del layout base),
-  y tarjetas en `@media (max-width: 639px)` con `td { display:block }` +
-  `td::before { content: attr(data-label) }`. El único media query del scoped es `max-width:639px`; no
-  hay un cuarto rango ni breakpoints en px que modificar.
-- **Testing**: Vitest + `@vue/test-utils` `mount`. Test existente en
-  `src/components/gestion/__tests__/LeadsTable.test.js` verifica `data-label`s, clases de estado y
-  `span.cifra`. **jsdom NO aplica media queries**: el DOM es idéntico en los 3 rangos y el reacomodo
-  mobile es puramente CSS — implicación clave para el plan de pruebas (ver abajo).
+Confirmado leyendo el código, no asumido:
+
+- **Vistas = smart components**: `GestionView.vue` y `DashboardView.vue` instancian `useLeadsStore()`,
+  disparan el fetch en `onMounted`, y leen `leadsStore.leads` / getters. Los componentes hijos
+  (`LeadsTable`, componentes de dashboard) son presentacionales: reciben datos por props y emiten
+  intención hacia arriba. `LeadsTable` no conoce el store.
+- **Store Pinia único** (`src/stores/leads.js`): un solo `state.leads` alimenta HOY tanto Gestión como
+  Dashboard (Dashboard deriva KPIs/embudo/etc. vía getters que delegan a `leadMetrics.js`). Acciones con
+  patrón uniforme: `this.error = null` → `try/catch` → chequeo de `error` de Supabase → mutación del
+  array en memoria → `return { success, error }`. `fetchLeads` usa `.select('*, seguimientos(*)').order(...)`.
+- **`createLead`**: hace `insert(datosLead).select('*, seguimientos(*)').single()` y `unshift` al estado.
+  El payload lo arma `LeadFormModal.construirPayload()` y NO incluye `archivado` — o sea, el valor por
+  defecto tiene que venir del DEFAULT de la columna en la DB (ver migración).
+- **Router**: rutas planas con `meta.requiresAuth`, componentes lazy (`() => import(...)`), guard global
+  por sesión de Supabase.
+- **Nav (`App.vue`)**: una sola `<nav>` con `<router-link>` a `/dashboard` y `/gestion`; CSS la muestra
+  como bottom-nav en móvil y sidebar fijo en ≥900px. Un link nuevo sirve para ambos con solo agregar el
+  `<router-link>`.
+- **Iconos**: SVG inline monolínea `viewBox="0 0 20 20"`, `stroke="currentColor"`, `fill="none"`,
+  `stroke-width="1.75"`, `stroke-linecap/linejoin="round"`; botón con `aria-label` no vacío y área táctil
+  `min-width/height: 44px` (clase `.leads-table__boton-icono`).
+- **Tests**: Vitest + `@vue/test-utils` (`mount`, props, `find`, `trigger`, `emitted()`); el store se
+  testea mockeando `@/lib/supabase` y encadenando `vi.fn()` que imitan el builder de queries
+  (`select → order`, `update → eq`, etc.). jsdom no evalúa media queries.
+
+El plan encaja en este patrón: props-abajo/eventos-arriba para la tabla, acciones Pinia con el mismo
+contrato `{success, error}`, vista nueva como smart component espejo de `GestionView`.
 
 ## Desviación de arquitectura
 
-- ¿Se necesita desviarse? **NO**.
-- **¿Dispara GATE 1? NO.** Evaluado con criterio, no minimizado:
-  - No cambia el modelo de datos: solo se leen campos ya existentes (`lead.seguimientos`,
-    `lead.contact`, y `getStatus(lead)`). No se agregan/renombran campos ni se toca `leadMetrics.js`.
-  - No cambia el contrato del componente: mismas props (`leads`), mismos emits
-    (`editar-lead`, `eliminar-lead`, `abrir-seguimientos`) con el mismo payload (`lead`).
-  - El único cambio de comportamiento —mover el disparador de `abrir-seguimientos` de la columna
-    Acciones al panel expandido— es **reubicar qué elemento del DOM emite un evento que ya existe**,
-    dentro del mismo componente. No cruza el límite de módulos: `GestionView.vue` sigue escuchando el
-    mismo evento con el mismo handler.
-  - Todo lo demás es presentación/accesibilidad (SVG, aria-labels, timeline, avatar, franja, chevron).
-    No introduce patrón nuevo, no afecta >1 módulo, no cambia el flujo de datos.
-- Conclusión: cambio contenido en un solo archivo presentacional. Pipeline normal (builder -> tester),
-  sin gate estructural.
+- ¿Se necesita desviarse? **SÍ — desviación estructural leve. Recomiendo confirmación GATE 1.**
+- Qué se desvía y por qué el patrón actual no alcanza tal cual:
+  1. **Cambia el modelo de datos**: nueva columna `archivado` en la tabla `leads` (migración SQL). Es un
+     trigger clásico de GATE 1, aunque sea aditivo y ya confirmado por negocio.
+  2. **Cambia la semántica de un fetch compartido que alimenta >1 módulo**: `fetchLeads()` pasa a traer
+     SOLO `archivado=false`, lo que afecta a Gestión **y** a Dashboard (KPIs, embudo, evolución, ranking).
+     Es un cambio de comportamiento cross-módulo, ya confirmado con Gianmarco pero que conviene sellar.
+  3. **Introduce un sub-patrón nuevo en el store**: el store deja de ser "un solo `leads`" y pasa a
+     mantener DOS colecciones (`leads` = activos, `leadsArchivados` = archivados) con fetches separados,
+     tal como pide HU-2 ("fetch separado del state principal"). Sigue las mismas convenciones de las
+     acciones existentes, pero es una extensión de forma del store.
+  4. **Dependencia de orden dura**: el código que filtra `.eq('archivado', false)` **rompe en runtime**
+     si la columna no existe todavía. La migración TIENE que correrse en Supabase ANTES de mergear/deploy.
+- Por qué es leve y de bajo riesgo: no introduce librería nueva ni cambia el flujo de datos general;
+  reutiliza el patrón props/eventos y el patrón de acciones `{success,error}`. Las decisiones de negocio
+  ya están tomadas. El GATE 1 aquí es un **sign-off técnico** sobre (a) el approach de doble colección en
+  un mismo store vs. store separado, y (b) la secuencia migración-primero — no una pregunta de negocio.
+- La parametrización de `LeadsTable` (props nuevas con defaults retrocompatibles + 2 emits nuevos) es
+  **aditiva y no rompe consumidores**, por lo que por sí sola **NO** dispara GATE 1.
+
+## Migración SQL (entregar a Gianmarco — correr en el editor SQL de Supabase ANTES del código)
+
+```sql
+-- Agrega el flag de archivado a la tabla leads.
+-- NOT NULL + DEFAULT false: las filas existentes quedan en false, y todo lead nuevo
+-- nace en false sin que el código tenga que enviarlo explícitamente (lo cubre createLead).
+ALTER TABLE public.leads
+  ADD COLUMN archivado boolean NOT NULL DEFAULT false;
+
+-- Opcional (recomendado si la tabla crece): índice para acelerar el filtrado por archivado.
+CREATE INDEX IF NOT EXISTS idx_leads_archivado ON public.leads (archivado);
+```
+
+Notas:
+- El `DEFAULT false` sobre las filas ya existentes las deja como no archivadas (comportamiento deseado:
+  nada desaparece de Gestión/Dashboard tras la migración).
+- No hace falta tocar `createLead`: el DEFAULT de la DB cubre el criterio "lead nuevo con archivado=false".
 
 ## Archivos a crear/modificar
 
-- `src/components/gestion/LeadsTable.vue` — **modificar** — único archivo de producción a tocar.
-  Cambios (template + script mínimo + estilos scoped):
-  1. **Iconos Editar/Eliminar (Acciones de fila colapsada)**: reemplazar los `<button>` de texto por
-     `<button>` con SVG inline monolínea (`viewBox="0 0 20 20"`, `stroke="currentColor"`,
-     `stroke-width="1.75"`, `fill="none"`). Mantener `@click="emit('editar-lead', lead)"` y
-     `emit('eliminar-lead', lead)`. Cada botón con `aria-label` descriptivo
-     (ej. `aria-label="Editar lead"`, `aria-label="Eliminar lead"`). Área táctil real: `<button>` con
-     `min-width:44px; min-height:44px` (o padding equivalente) aunque el SVG sea de 20px.
-     **Quitar de aquí el botón "Seguimientos"** (era la línea 125).
-  2. **Seguimientos -> panel expandido**: dentro de `.leads-table__historial`, junto al `<h3>`
-     "Historial de seguimientos (N)", agregar un `<button>` con SVG (mismo formato) que emita
-     `emit('abrir-seguimientos', lead)` con `aria-label="Agregar seguimiento"`. Mismo evento, mismo
-     payload; solo cambia el disparador.
-  3. **Conteo (N) en el título**: `Historial de seguimientos ({{ lead.seguimientos?.length ?? 0 }})`
-     — N = cantidad real de notas del lead (equivale a `seguimientosOrdenados(lead).length`). Usar la
-     longitud real del array, no un contador aparte.
-  4. **Chevron expandir**: reemplazar el glifo `+/−` (línea 107) por un SVG chevron (mismo formato)
-     que rote 90° vía CSS `transition: transform 0.15s ease`, disparado por el estado abierto
-     (`leadExpandidoId === lead.id`) con una clase modificadora
-     (ej. `:class="{ 'leads-table__boton-expandir--abierto': leadExpandidoId === lead.id }"`).
-     Conservar el `aria-expanded` existente (línea 104). Recomendado: agregar `aria-label` al botón.
-  5. **Timeline en el historial**: la `<ul class="leads-table__historial-lista">` pasa a lista tipo
-     timeline: cada `<li>` con punto (`--color-primario`) y línea conectora
-     (`--color-borde-tarjeta`) vía `::before`/`::after`. La fecha va en `<span class="cifra">`
-     (reemplaza el `<strong>` actual); el texto de la nota no cambia. Solo estructura/CSS, sin cambios
-     de datos.
-  6. **Franja de color izquierda por estado**: agregar clase modificadora a `.leads-table__fila` ligada
-     a `getStatus(lead)`, ej. `` :class="`leads-table__fila--${getStatus(lead)}`" ``, con
-     `border-left: 3-4px solid` mapeando: `--convertido -> --color-exito`,
-     `--rechazado -> --color-error`, `--proceso -> --color-advertencia`. Reutiliza el patrón de sufijo
-     del badge. NO tocar `getStatus`.
-  7. **Avatar de iniciales**: función local simple (ej. `inicial(lead)` que devuelve
-     `(lead.contact || '').trim().charAt(0).toUpperCase() || '?'`). Renderizar un `<span>` circular con
-     esa inicial dentro del `td[data-label="Contacto"]`, fondo `--color-borde-tarjeta`, texto
-     `--color-texto`. Tamaño 28px en fila desktop/tablet; 32px dentro del `@media (max-width:639px)`.
-  8. **Reacomodo mobile del avatar+nombre (sin cuarto breakpoint)**: DOM único (avatar + nombre siempre
-     dentro del td Contacto). Dentro del `@media (max-width:639px)` YA existente, dar al
-     `td[data-label="Contacto"]` tratamiento de cabecera de tarjeta (avatar 32px + nombre en línea,
-     ocultar su `::before` de data-label "Contacto" para que no sea "una fila de dato más"). Solo CSS
-     dentro del media query existente; no se agregan breakpoints.
+Contrato congelado primero (para poder paralelizar chunks sin colisión de nombres):
 
-- `src/views/GestionView.vue` — **NO se modifica.** Sigue escuchando `abrir-seguimientos` con
-  `abrirSeguimientos`. El cambio de "de dónde sale el evento" es interno a `LeadsTable`; el contrato
-  hacia la vista es idéntico. Confirmado: **alcanza con `LeadsTable.vue` solo.**
+**LeadsTable — props nuevas (aditivas, defaults preservan Gestión actual) + emits nuevos**
+- Props: `leads` (existente) + `mostrarEditar: Boolean = true`, `mostrarEliminar: Boolean = true`,
+  `mostrarArchivar: Boolean = false`, `mostrarReactivar: Boolean = false`,
+  `permitirAgregarSeguimiento: Boolean = true`.
+- Emits: `editar-lead`, `eliminar-lead`, `abrir-seguimientos` (existentes) + `archivar-lead`,
+  `reactivar-lead` (nuevos). Todos emiten el objeto `lead` completo.
 
-- `src/components/gestion/__tests__/LeadsTable.test.js` — **modificar/ampliar** (lo hace dev-tester,
-  no el builder) — agregar los casos del plan de pruebas. Los 7 tests existentes deben seguir
-  pasando: `data-label="Acciones"` se conserva (la columna sigue existiendo, solo cambia su
-  contenido), los `data-label`s no cambian, y `span.cifra` en Factura/Creación/Días sigue igual.
+**Store — contrato congelado**
+- `state.leadsArchivados: []` (nuevo).
+- `fetchLeads()` → agrega `.eq('archivado', false)` (cadena `select → eq → order`).
+- `fetchLeadsArchivados()` (nuevo) → `from('leads').select('*, seguimientos(*)').eq('archivado', true).order('created_at', {ascending:false})`, puebla `state.leadsArchivados`; mismo manejo de error.
+- `archivarLead(leadId)` (nuevo) → `from('leads').update({ archivado: true }).eq('id', leadId)`; si OK, quita el lead de `state.leads`; `return {success, error}`. Sin `.select()` (patrón `deleteLead`).
+- `reactivarLead(leadId)` (nuevo) → `update({ archivado: false }).eq('id', leadId)`; si OK, quita el lead de `state.leadsArchivados`; `return {success, error}`.
+- Nota de consistencia: no hace falta mover el item entre arrays en memoria; cada vista hace su fetch en
+  `onMounted` al navegar, así que "reaparece en la otra lista" queda cubierto por la navegación SPA.
 
-**Chunks paralelizables**: un solo archivo de producción con template + estilos scoped entrelazados;
-NO conviene paralelizar el build. El único trabajo independiente es la ampliación de tests
-(dev-tester), una vez definido el marcado por el builder.
+Archivos:
 
-## Plan de pruebas (Vitest — para dev-tester)
+- **`src/stores/leads.js`** — modificar — aplicar el contrato de store de arriba (filtro en `fetchLeads`,
+  `state.leadsArchivados`, `fetchLeadsArchivados`, `archivarLead`, `reactivarLead`). *[Chunk A — base]*
 
-Nota transversal: jsdom no evalúa media queries, así que estos tests validan **marcado, eventos,
-conteo y clases** (contrato + lógica), iguales en los 3 rangos. Lo puramente visual —rotación real del
-chevron, apariencia del timeline, colores renderizados de la franja, reacomodo mobile del avatar— se
-deja para **verificación manual**, igual que en tareas anteriores de la sesión.
+- **`src/components/gestion/LeadsTable.vue`** — modificar (reutilizar, NO duplicar). Justificación:
+  la UX pide "exactamente igual a Gestión" con diferencias puntuales → parametrizar es lo correcto y
+  mantiene una sola fuente de verdad para tabla/buscador/responsive/timeline. Cambios:
+  - Declarar props/emits nuevos del contrato.
+  - Columna Acciones: envolver cada botón en `v-if` — Editar (`v-if="mostrarEditar"`),
+    Archivar (`v-if="mostrarArchivar"`, nuevo, emite `archivar-lead`), Eliminar (`v-if="mostrarEliminar"`),
+    Reactivar (`v-if="mostrarReactivar"`, nuevo, emite `reactivar-lead`).
+  - Icono **Archivar**: SVG monolínea de caja/archivo (p.ej. tapa horizontal + cuerpo + tirador), no emoji.
+    `aria-label="Archivar lead de ${lead.contact || 'este lead'}"`.
+  - Icono **Reactivar**: SVG monolínea de flecha circular / restaurar.
+    `aria-label="Reactivar lead de ${lead.contact || 'este lead'}"`.
+  - Panel expandido: envolver el botón "Agregar seguimiento" en `v-if="permitirAgregarSeguimiento"`.
+    El historial (`<h3>`, contador, `<ul>` timeline) se mantiene SIEMPRE visible.
+  - Defaults elegidos para que montar `LeadsTable` sin props nuevas siga dando Editar+Eliminar (2 botones)
+    y el botón de agregar seguimiento → los 7 tests actuales quedan verdes sin tocarlos. *[Chunk B]*
 
-### Camino feliz
-- Lead normal (sin `conversion_at` ni `rechazo_at`): la fila renderiza avatar con inicial del contacto,
-  iconos de Editar y Eliminar en Acciones, y chevron de expandir. `getStatus` = `proceso`.
+- **`src/views/GestionView.vue`** — modificar — pasar `:mostrar-archivar="true"` a `LeadsTable` y
+  escuchar `@archivar-lead="archivarLead"`. Handler nuevo `archivarLead(lead)` que llama
+  `leadsStore.archivarLead(lead.id)` (directo, sin ConfirmDialog: el Gherkin no pide confirmación y la
+  acción es reversible). El resto (alta/edición/eliminar/seguimientos) sin cambios. *[Chunk D]*
 
-### Borde/error
-- Lead sin `contact` (`''` o ausente): la función de inicial no rompe y devuelve fallback (`'?'`).
-- Lead con `seguimientos: []`: al expandir, el conteo del título muestra `(0)` y sigue el mensaje de
-  historial vacío; el icono "Agregar seguimiento" existe igual.
+- **`src/views/ArchivadosView.vue`** — crear — smart component espejo de `GestionView`, minimalista:
+  - `onMounted(() => leadsStore.fetchLeadsArchivados())`.
+  - Header con `<h1>` "Leads Archivados" (el título vive en la vista, no en la tabla) + `LoadingOverlay` +
+    error del store, igual que `GestionView`.
+  - `<LeadsTable :leads="leadsStore.leadsArchivados" :mostrar-editar="false" :mostrar-eliminar="false"
+    :mostrar-archivar="false" :mostrar-reactivar="true" :permitir-agregar-seguimiento="false"
+    @reactivar-lead="reactivarLead" />`.
+  - Handler `reactivarLead(lead)` → `leadsStore.reactivarLead(lead.id)`.
+  - SIN `AddLeadButton`, `LeadFormModal`, `SeguimientosModal`, `ConfirmDialog`. *[Chunk D]*
 
-### aria-labels (existen y tienen contenido)
-- Botón Editar: `aria-label` no vacío (`.trim().length > 0`).
-- Botón Eliminar: `aria-label` no vacío.
-- Tras expandir, el icono de seguimientos del panel tiene `aria-label="Agregar seguimiento"` (no vacío).
-- (Recomendado) el botón de expandir tiene `aria-label` no vacío y conserva `aria-expanded`.
+- **`src/router/index.js`** — modificar — agregar ruta:
+  `{ path: '/archivados', name: 'archivados', component: () => import('@/views/ArchivadosView.vue'), meta: { requiresAuth: true } }`. *[Chunk C]*
 
-### Evento de seguimientos migrado (dispara desde el panel, NO desde la fila colapsada)
-- **Ausencia en fila colapsada**: montar sin expandir; verificar que dentro de
-  `.leads-table__acciones` NO hay control que emita `abrir-seguimientos`. Concretamente:
-  `wrapper.emitted('abrir-seguimientos')` es `undefined` tras click en cada botón de Acciones, y/o que
-  `.leads-table__acciones` contiene exactamente 2 botones (Editar, Eliminar).
-- **Presencia en panel expandido**: expandir la fila (click en botón expandir), localizar el icono de
-  seguimientos dentro de `.leads-table__historial`, click, y verificar que
-  `wrapper.emitted('abrir-seguimientos')` existe, longitud 1, con payload `[0][0]` = el `lead`.
+- **`src/App.vue`** — modificar — agregar `<router-link to="/archivados">Archivados</router-link>` en la
+  `<nav>`, junto a Dashboard/Gestión (sirve para sidebar desktop y bottom-nav móvil por el CSS existente).
+  *[Chunk C]*
 
-### Conteo (N) del título coincide con `seguimientos.length` real
-- Lead con 3 seguimientos: al expandir, el texto del título contiene `(3)`.
-- Lead con `seguimientos: []`: el título contiene `(0)`.
-- El conteo refleja el array real del lead, independiente del orden que aplica `seguimientosOrdenados`.
+**Chunks paralelizables** (archivos que no se solapan; con el contrato de arriba congelado):
+- Chunk A: `stores/leads.js`.
+- Chunk B: `components/gestion/LeadsTable.vue`.
+- Chunk C: `router/index.js` + `App.vue`.
+- Chunk D: `views/ArchivadosView.vue` + `views/GestionView.vue` (depende de que A y B expongan los nombres
+  del contrato, pero no comparte archivos con ellos).
 
-### Franja izquierda mapea a cada uno de los 3 estados
-- Lead con `conversion_at` -> `.leads-table__fila` tiene la clase `leads-table__fila--convertido`.
-- Lead con `rechazo_at` (sin `conversion_at`) -> clase `...--rechazado`.
-- Lead sin ninguno -> clase `...--proceso`.
-- Los colores exactos de la franja se validan manualmente; el test solo asegura el mapeo de clase,
-  reusando la lógica de `getStatus` (ya cubierta por `leadMetrics.test.js`).
+## Plan de pruebas
 
-### Regresión (no romper lo existente)
-- Los 7 tests actuales de `LeadsTable.test.js` deben seguir verdes: `data-label`s intactos
-  (incl. `Acciones`), clases de badge de estado, `span.cifra` en Factura/Creación/Días, y mensajes de
-  "sin resultados" / búsqueda sin coincidencias.
+### Cubrible con Vitest
 
----
+**Store — `src/stores/__tests__/leads.test.js`** (mockeando `@/lib/supabase`):
+- `fetchLeads`: la cadena ahora es `select → eq → order`; assert `eq` invocado con `('archivado', false)`
+  y que puebla `state.leads`. **Ajustar los 2 tests existentes de `fetchLeads`** (hoy mockean `select → order`
+  sin `eq`) para intercalar el `eq`.
+- `fetchLeadsArchivados` (nuevo): camino feliz puebla `state.leadsArchivados`; assert `from('leads')` +
+  `eq('archivado', true)`. Borde: error de Supabase → `state.error` seteado, `leadsArchivados` intacto.
+- `archivarLead` (nuevo): assert `update({ archivado: true })` + `eq('id', id)`; quita el lead de
+  `state.leads`; retorna `{success:true}`. Borde: error → `state.leads` intacto, `{success:false, error}`.
+- `reactivarLead` (nuevo): assert `update({ archivado: false })` + `eq('id', id)`; quita el lead de
+  `state.leadsArchivados`; retorna `{success:true}`. Borde: error → estado intacto, `{success:false}`.
 
-## Sugerencias fuera de alcance (NO implementar en esta tarea)
-- El botón de expandir usa `aria-expanded` pero no `aria-controls` apuntando al panel; agregarlo
-  mejoraría la accesibilidad, pero excede lo pedido.
-- Los colores hardcodeados que quedan en el scoped (`#f8f9fb`, `#6b7280`, `#eef0f3`, `#a83a2f`, etc.)
-  podrían migrarse a tokens en una limpieza posterior; fuera de alcance aquí.
+**LeadsTable — `src/components/gestion/__tests__/LeadsTable.test.js`**:
+- Regresión: con props por defecto, Acciones tiene exactamente Editar+Eliminar (2 botones), sin
+  Archivar/Reactivar; los 7 tests actuales siguen verdes.
+- `mostrarArchivar=true`: existe el botón Archivar con `aria-label` no vacío que contiene "Archivar" y el
+  contacto; click emite `archivar-lead` con `[0][0] === lead`.
+- `mostrarReactivar=true, mostrarEditar=false, mostrarEliminar=false`: Acciones tiene SOLO Reactivar;
+  Editar/Eliminar ausentes; `aria-label` no vacío contiene "Reactivar"; click emite `reactivar-lead` con el lead.
+- `permitirAgregarSeguimiento=false`: al expandir, el historial (título, contador, `<ul>`) renderiza, pero
+  el botón "Agregar seguimiento" NO existe (`find(...).exists() === false`) y no puede emitir
+  `abrir-seguimientos`.
+- `permitirAgregarSeguimiento=true` (default): el botón "Agregar seguimiento" existe (test actual sigue válido).
+
+**App / Nav — `src/__tests__/App.test.js`**:
+- Con sesión, los `href` de la nav incluyen `/dashboard`, `/gestion` y `/archivados`.
+- Sin sesión, sigue sin renderizar la nav (`findAll('a')` length 0) — regresión.
+
+**ArchivadosView (opcional, `src/views/__tests__/ArchivadosView.test.js`)**:
+- Monta con store mock/stub: renderiza `<h1>` "Leads Archivados", llama `fetchLeadsArchivados` en
+  `onMounted`, y pasa a `LeadsTable` las props correctas (`mostrar-reactivar=true`,
+  `permitir-agregar-seguimiento=false`, `mostrar-editar=false`, `mostrar-eliminar=false`).
+
+### Criterios de aceptación (HU) mapeados a casos
+- HU-1 "lead nuevo con archivado=false por defecto": **NO** unit-testeable (lo cubre el DEFAULT de la DB) →
+  verificación manual tras la migración.
+- HU-1 "Gestión excluye archivado=true": cubierto por el test de `fetchLeads` (`eq('archivado', false)`);
+  el excluir real de datos → verificación manual.
+- HU-1 "click Archivar → archivado=true y desaparece": test de emit en LeadsTable + test de `archivarLead`
+  (quita de `state.leads`).
+- HU-2 "opción Archivados en el menú": test de nav en App.test.js.
+- HU-2 "vista título 'Leads Archivados', SOLO archivado=true, fetch separado": test de ArchivadosView +
+  `fetchLeadsArchivados` (`eq('archivado', true)`).
+- HU-2 "mismo buscador": se hereda de `LeadsTable` sin cambios (el buscador interno ya existe) → cubierto
+  por reutilización; verificación manual del comportamiento en la vista.
+- HU-2 "solo botón Reactivar, sin Editar/Eliminar": test de LeadsTable con las props de Archivados.
+- HU-2 "click Reactivar → archivado=false y desaparece de Archivados": test de emit + `reactivarLead`.
+- HU-2 "panel de historial sin botón de agregar seguimiento pero con historial": test de
+  `permitirAgregarSeguimiento=false`.
+
+### Solo verificable manualmente (fuera de Vitest)
+- Correr la migración SQL en Supabase y que la columna quede con el default correcto.
+- El fetch real devolviendo solo `archivado=false` / `archivado=true`.
+- Que el Dashboard (KPIs/embudo/evolución/ranking) efectivamente excluya archivados con datos reales.
+- Navegación real entre Dashboard/Gestión/Archivados y el refetch en `onMounted` al cambiar de vista.
+- Apariencia de los iconos nuevos (Archivar/Reactivar) y su render en móvil (tarjetas <640px).
+
+## Sugerencias fuera de alcance (NO implementar aquí)
+- Si a futuro se quiere consistencia en memoria sin refetch al navegar, `archivarLead`/`reactivarLead`
+  podrían mover el item entre `leads` y `leadsArchivados`. Innecesario ahora (el `onMounted` de cada vista
+  lo resuelve) y agregaría complejidad al store.
+- Confirmación previa (`ConfirmDialog`) antes de Archivar/Reactivar: el Gherkin no lo pide y son acciones
+  reversibles; se deja directo.

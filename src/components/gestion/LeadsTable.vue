@@ -8,9 +8,35 @@ const props = defineProps({
     type: Array,
     default: () => [],
   },
+  mostrarEditar: {
+    type: Boolean,
+    default: true,
+  },
+  mostrarEliminar: {
+    type: Boolean,
+    default: true,
+  },
+  mostrarArchivar: {
+    type: Boolean,
+    default: false,
+  },
+  mostrarReactivar: {
+    type: Boolean,
+    default: false,
+  },
+  permitirAgregarSeguimiento: {
+    type: Boolean,
+    default: true,
+  },
 })
 
-const emit = defineEmits(['editar-lead', 'eliminar-lead', 'abrir-seguimientos'])
+const emit = defineEmits([
+  'editar-lead',
+  'eliminar-lead',
+  'abrir-seguimientos',
+  'archivar-lead',
+  'reactivar-lead',
+])
 
 const busqueda = ref('')
 const leadExpandidoId = ref(null)
@@ -134,6 +160,7 @@ function inicial(lead) {
               <td data-label="Días en proceso"><span class="cifra">{{ getDaysInProcess(lead) }}</span></td>
               <td data-label="Acciones" class="leads-table__acciones leads-table__col-derecha">
                 <button
+                  v-if="mostrarEditar"
                   type="button"
                   class="leads-table__boton-icono"
                   :aria-label="`Editar lead de ${lead.contact || 'este lead'}`"
@@ -144,6 +171,18 @@ function inicial(lead) {
                   </svg>
                 </button>
                 <button
+                  v-if="mostrarArchivar"
+                  type="button"
+                  class="leads-table__boton-icono leads-table__boton-archivar"
+                  :aria-label="`Archivar lead de ${lead.contact || 'este lead'}`"
+                  @click="emit('archivar-lead', lead)"
+                >
+                  <svg viewBox="0 0 20 20" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M3.5 5.5A1.5 1.5 0 015 4h10a1.5 1.5 0 011.5 1.5v1.5h-13V5.5zM3.5 8.5h13V14a1.5 1.5 0 01-1.5 1.5H5A1.5 1.5 0 013.5 14V8.5zM8 11h4" />
+                  </svg>
+                </button>
+                <button
+                  v-if="mostrarEliminar"
                   type="button"
                   class="leads-table__boton-icono leads-table__boton-eliminar"
                   :aria-label="`Eliminar lead de ${lead.contact || 'este lead'}`"
@@ -151,6 +190,17 @@ function inicial(lead) {
                 >
                   <svg viewBox="0 0 20 20" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                     <path d="M4 6h12M8 6V4.5A1.5 1.5 0 019.5 3h1A1.5 1.5 0 0112 4.5V6m-6.5 0l.6 9.4A1.5 1.5 0 007.6 17h4.8a1.5 1.5 0 001.5-1.6L14.5 6M8.5 9v5M11.5 9v5" />
+                  </svg>
+                </button>
+                <button
+                  v-if="mostrarReactivar"
+                  type="button"
+                  class="leads-table__boton-icono leads-table__boton-reactivar"
+                  :aria-label="`Reactivar lead de ${lead.contact || 'este lead'}`"
+                  @click="emit('reactivar-lead', lead)"
+                >
+                  <svg viewBox="0 0 20 20" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M15.5 6.5A6 6 0 105.7 9.5M15.5 6.5V3M15.5 6.5H12" />
                   </svg>
                 </button>
               </td>
@@ -162,6 +212,7 @@ function inicial(lead) {
                     <h3 class="leads-table__historial-titulo">Historial de seguimientos</h3>
                     <span class="leads-table__historial-contador">{{ seguimientosOrdenados(lead).length }}</span>
                     <button
+                      v-if="permitirAgregarSeguimiento"
                       type="button"
                       class="leads-table__boton-icono"
                       aria-label="Agregar seguimiento"
@@ -347,6 +398,12 @@ function inicial(lead) {
 .leads-table__boton-eliminar {
   border-color: #e3b3ae;
   color: #a83a2f;
+}
+
+.leads-table__boton-archivar,
+.leads-table__boton-reactivar {
+  border-color: #b7c6e3;
+  color: #2f5aa8;
 }
 
 .leads-table__fila-expandida td {

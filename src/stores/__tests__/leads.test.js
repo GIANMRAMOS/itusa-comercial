@@ -23,13 +23,15 @@ describe('useLeadsStore.fetchLeads', () => {
       { id: 2, contact: 'Ana', seguimientos: [] },
     ]
     const order = vi.fn().mockResolvedValue({ data: dataSimulada, error: null })
-    const select = vi.fn(() => ({ order }))
+    const eq = vi.fn(() => ({ order }))
+    const select = vi.fn(() => ({ eq }))
     supabase.from.mockReturnValue({ select })
 
     const store = useLeadsStore()
     await store.fetchLeads()
 
     expect(supabase.from).toHaveBeenCalledWith('leads')
+    expect(eq).toHaveBeenCalledWith('archivado', false)
     expect(store.leads).toEqual(dataSimulada)
     expect(store.loading).toBe(false)
     expect(store.error).toBeNull()
@@ -37,7 +39,8 @@ describe('useLeadsStore.fetchLeads', () => {
 
   it('borde: si Supabase retorna error, setea error y no rompe el estado (leads queda como estaba)', async () => {
     const order = vi.fn().mockResolvedValue({ data: null, error: { message: 'Falla de conexión' } })
-    const select = vi.fn(() => ({ order }))
+    const eq = vi.fn(() => ({ order }))
+    const select = vi.fn(() => ({ eq }))
     supabase.from.mockReturnValue({ select })
 
     const store = useLeadsStore()
@@ -45,6 +48,43 @@ describe('useLeadsStore.fetchLeads', () => {
 
     expect(store.error).toBe('Falla de conexión')
     expect(store.leads).toEqual([]) // estado inicial preservado, sin throw
+    expect(store.loading).toBe(false)
+  })
+})
+
+describe('useLeadsStore.fetchLeadsArchivados', () => {
+  it('camino feliz: puebla leadsArchivados con la respuesta simulada, filtrando archivado=true', async () => {
+    const dataSimulada = [
+      { id: 10, contact: 'Archivado 1', seguimientos: [] },
+      { id: 11, contact: 'Archivado 2', seguimientos: [] },
+    ]
+    const order = vi.fn().mockResolvedValue({ data: dataSimulada, error: null })
+    const eq = vi.fn(() => ({ order }))
+    const select = vi.fn(() => ({ eq }))
+    supabase.from.mockReturnValue({ select })
+
+    const store = useLeadsStore()
+    await store.fetchLeadsArchivados()
+
+    expect(supabase.from).toHaveBeenCalledWith('leads')
+    expect(eq).toHaveBeenCalledWith('archivado', true)
+    expect(store.leadsArchivados).toEqual(dataSimulada)
+    expect(store.loading).toBe(false)
+    expect(store.error).toBeNull()
+  })
+
+  it('borde: si Supabase retorna error, setea error y leadsArchivados queda intacto', async () => {
+    const order = vi.fn().mockResolvedValue({ data: null, error: { message: 'Falla de conexión' } })
+    const eq = vi.fn(() => ({ order }))
+    const select = vi.fn(() => ({ eq }))
+    supabase.from.mockReturnValue({ select })
+
+    const store = useLeadsStore()
+    store.leadsArchivados = [{ id: 99 }]
+    await store.fetchLeadsArchivados()
+
+    expect(store.error).toBe('Falla de conexión')
+    expect(store.leadsArchivados).toEqual([{ id: 99 }])
     expect(store.loading).toBe(false)
   })
 })
@@ -150,5 +190,69 @@ describe('useLeadsStore.deleteLead', () => {
     expect(store.error).toBe('No se pudo borrar')
     expect(store.leads).toEqual([{ id: 1 }, { id: 2 }])
     expect(resultado).toEqual({ success: false, error: 'No se pudo borrar' })
+  })
+})
+
+describe('useLeadsStore.archivarLead', () => {
+  it('invoca update({archivado:true})/eq() y quita el lead de state.leads', async () => {
+    const eq = vi.fn().mockResolvedValue({ error: null })
+    const update = vi.fn(() => ({ eq }))
+    supabase.from.mockReturnValue({ update })
+
+    const store = useLeadsStore()
+    store.leads = [{ id: 1 }, { id: 2 }]
+    const resultado = await store.archivarLead(1)
+
+    expect(supabase.from).toHaveBeenCalledWith('leads')
+    expect(update).toHaveBeenCalledWith({ archivado: true })
+    expect(eq).toHaveBeenCalledWith('id', 1)
+    expect(store.leads).toEqual([{ id: 2 }])
+    expect(resultado).toEqual({ success: true })
+  })
+
+  it('borde: si Supabase retorna error, setea error, NO quita nada de state.leads y retorna success:false', async () => {
+    const eq = vi.fn().mockResolvedValue({ error: { message: 'No se pudo archivar' } })
+    const update = vi.fn(() => ({ eq }))
+    supabase.from.mockReturnValue({ update })
+
+    const store = useLeadsStore()
+    store.leads = [{ id: 1 }, { id: 2 }]
+    const resultado = await store.archivarLead(1)
+
+    expect(store.error).toBe('No se pudo archivar')
+    expect(store.leads).toEqual([{ id: 1 }, { id: 2 }])
+    expect(resultado).toEqual({ success: false, error: 'No se pudo archivar' })
+  })
+})
+
+describe('useLeadsStore.reactivarLead', () => {
+  it('invoca update({archivado:false})/eq() y quita el lead de state.leadsArchivados', async () => {
+    const eq = vi.fn().mockResolvedValue({ error: null })
+    const update = vi.fn(() => ({ eq }))
+    supabase.from.mockReturnValue({ update })
+
+    const store = useLeadsStore()
+    store.leadsArchivados = [{ id: 1 }, { id: 2 }]
+    const resultado = await store.reactivarLead(1)
+
+    expect(supabase.from).toHaveBeenCalledWith('leads')
+    expect(update).toHaveBeenCalledWith({ archivado: false })
+    expect(eq).toHaveBeenCalledWith('id', 1)
+    expect(store.leadsArchivados).toEqual([{ id: 2 }])
+    expect(resultado).toEqual({ success: true })
+  })
+
+  it('borde: si Supabase retorna error, setea error, deja state.leadsArchivados intacto y retorna success:false', async () => {
+    const eq = vi.fn().mockResolvedValue({ error: { message: 'No se pudo reactivar' } })
+    const update = vi.fn(() => ({ eq }))
+    supabase.from.mockReturnValue({ update })
+
+    const store = useLeadsStore()
+    store.leadsArchivados = [{ id: 1 }, { id: 2 }]
+    const resultado = await store.reactivarLead(1)
+
+    expect(store.error).toBe('No se pudo reactivar')
+    expect(store.leadsArchivados).toEqual([{ id: 1 }, { id: 2 }])
+    expect(resultado).toEqual({ success: false, error: 'No se pudo reactivar' })
   })
 })
