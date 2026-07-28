@@ -4,10 +4,10 @@ import { useLeadsStore } from '@/stores/leads'
 import HeaderLegacy from '@/components/dashboard/HeaderLegacy.vue'
 import KpiCards from '@/components/dashboard/KpiCards.vue'
 import ConversionFunnel from '@/components/dashboard/ConversionFunnel.vue'
-import MonthlyEvolutionChart from '@/components/dashboard/MonthlyEvolutionChart.vue'
 import Last30DaysChart from '@/components/dashboard/Last30DaysChart.vue'
 import TopSourcesRanking from '@/components/dashboard/TopSourcesRanking.vue'
 import LatestSeguimientos from '@/components/dashboard/LatestSeguimientos.vue'
+import TareasProximoContacto from '@/components/dashboard/TareasProximoContacto.vue'
 
 const leadsStore = useLeadsStore()
 
@@ -26,11 +26,11 @@ onMounted(() => {
 
     <div class="dashboard__grid">
       <LatestSeguimientos :seguimientos="leadsStore.latestSeguimientos" />
-      <ConversionFunnel :leads="leadsStore.leads" />
+      <TareasProximoContacto :leads="leadsStore.leads" />
     </div>
 
     <div class="dashboard__grid">
-      <MonthlyEvolutionChart :evolucion="leadsStore.monthlyEvolution" />
+      <ConversionFunnel :leads="leadsStore.leads" />
       <Last30DaysChart :datos="leadsStore.last30Days" />
     </div>
 

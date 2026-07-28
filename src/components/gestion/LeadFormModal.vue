@@ -87,6 +87,36 @@ function filtrarTelefono() {
   formulario.value.phone = formulario.value.phone.replace(/[^0-9+]/g, '')
 }
 
+// "Valor Estimado Servicio": se edita en crudo (solo dígitos y punto decimal) y se
+// muestra formateado en USD (miles + 2 decimales) al perder el foco.
+function formatearFactura(valor) {
+  if (valor === '' || valor === null || valor === undefined) return ''
+  const numero = Number(valor)
+  if (Number.isNaN(numero)) return ''
+  return numero.toLocaleString('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })
+}
+
+const facturaDisplay = ref(formatearFactura(formulario.value.factura))
+
+function actualizarFactura(event) {
+  const valorCrudo = event.target.value.replace(/[^0-9.]/g, '')
+  formulario.value.factura = valorCrudo
+  facturaDisplay.value = valorCrudo
+}
+
+function enfocarFactura() {
+  facturaDisplay.value = formulario.value.factura === '' ? '' : String(formulario.value.factura)
+}
+
+function desenfocarFactura() {
+  facturaDisplay.value = formatearFactura(formulario.value.factura)
+}
+
 const camposFecha = [
   'created_at',
   'contactado_at',
@@ -169,7 +199,7 @@ function enviarFormulario() {
 
 <template>
   <div class="lead-form-modal">
-    <div class="lead-form-modal__fondo" @click="emit('close')"></div>
+    <div class="lead-form-modal__fondo"></div>
     <div class="lead-form-modal__panel">
       <h2 class="lead-form-modal__titulo">{{ props.lead ? 'Editar lead' : 'Nuevo lead' }}</h2>
 
@@ -219,7 +249,14 @@ function enviarFormulario() {
 
           <label class="lead-form-modal__campo">
             <span>Valor Estimado Servicio</span>
-            <input v-model="formulario.factura" type="number" step="0.01" min="0" />
+            <input
+              :value="facturaDisplay"
+              type="text"
+              inputmode="decimal"
+              @input="actualizarFactura"
+              @focus="enfocarFactura"
+              @blur="desenfocarFactura"
+            />
           </label>
 
           <template v-if="estado === 'proceso'">
@@ -294,7 +331,7 @@ function enviarFormulario() {
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 50;
+  z-index: 1000;
 }
 
 .lead-form-modal__fondo {

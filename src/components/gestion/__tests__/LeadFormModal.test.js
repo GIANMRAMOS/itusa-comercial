@@ -402,4 +402,50 @@ describe('LeadFormModal', () => {
       expect(payload.created_at).toBe('2019-03-15')
     })
   })
+
+  describe('campo "Valor Estimado Servicio" (formato moneda USD)', () => {
+    function campoFactura(wrapper) {
+      const label = wrapper
+        .findAll('label.lead-form-modal__campo')
+        .find((l) => l.find('span').text() === 'Valor Estimado Servicio')
+      return label.find('input')
+    }
+
+    it('al editar un lead con factura, se muestra formateado en USD con miles y decimales', () => {
+      const wrapper = mount(LeadFormModal, {
+        props: { lead: crearLead({ factura: 204838 }), fuentesDisponibles: ['Web'] },
+      })
+      expect(campoFactura(wrapper).element.value).toBe('$204,838.00')
+    })
+
+    it('al enfocar el campo, muestra el valor crudo editable (sin formato)', async () => {
+      const wrapper = mount(LeadFormModal, {
+        props: { lead: crearLead({ factura: 1500.5 }), fuentesDisponibles: ['Web'] },
+      })
+      await campoFactura(wrapper).trigger('focus')
+      expect(campoFactura(wrapper).element.value).toBe('1500.5')
+    })
+
+    it('filtra caracteres no numéricos mientras se escribe', async () => {
+      const wrapper = mount(LeadFormModal, { props: { lead: null, fuentesDisponibles: ['Web'] } })
+      const input = campoFactura(wrapper)
+      await input.setValue('abc1500.75xyz')
+      expect(input.element.value).toBe('1500.75')
+    })
+
+    it('al perder el foco, formatea a moneda USD con miles y 2 decimales', async () => {
+      const wrapper = mount(LeadFormModal, { props: { lead: null, fuentesDisponibles: ['Web'] } })
+      const input = campoFactura(wrapper)
+      await input.setValue('2500')
+      await input.trigger('blur')
+      expect(input.element.value).toBe('$2,500.00')
+    })
+
+    it('campo vacío no se formatea (queda en blanco)', async () => {
+      const wrapper = mount(LeadFormModal, { props: { lead: null, fuentesDisponibles: ['Web'] } })
+      const input = campoFactura(wrapper)
+      await input.trigger('blur')
+      expect(input.element.value).toBe('')
+    })
+  })
 })

@@ -240,6 +240,25 @@ describe('SeguimientosModal', () => {
     expect(wrapper.emitted('editar-seguimiento')).toBeUndefined()
   })
 
+  it('al agregar un seguimiento nuevo, la ventana se cierra (emite close)', async () => {
+    const wrapper = mount(SeguimientosModal, { props: { lead: crearLead() } })
+
+    await wrapper.find('textarea').setValue('Seguimiento nuevo')
+    await wrapper.find('form').trigger('submit.prevent')
+
+    expect(wrapper.emitted('close')).toBeTruthy()
+  })
+
+  it('al guardar la edición de un seguimiento existente, la ventana NO se cierra', async () => {
+    const wrapper = mount(SeguimientosModal, { props: { lead: crearLead() } })
+
+    await botonEditarDe(wrapper, 10).trigger('click')
+    await wrapper.find('textarea').setValue('Texto editado')
+    await wrapper.find('form').trigger('submit.prevent')
+
+    expect(wrapper.emitted('close')).toBeUndefined()
+  })
+
   it('agregar seguimiento con Estado = Rechazado arma actualizacionEstado con el motivo y la fecha elegidos', async () => {
     const wrapper = mount(SeguimientosModal, { props: { lead: crearLead() } })
 

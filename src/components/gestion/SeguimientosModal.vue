@@ -108,6 +108,7 @@ function manejarSubmitForm() {
       texto: nuevoTexto.value.trim(),
       actualizacionEstado,
     })
+    emit('close')
   }
 
   nuevoTexto.value = ''
@@ -146,7 +147,7 @@ function confirmarEliminacion() {
 
 <template>
   <div class="seguimientos-modal">
-    <div class="seguimientos-modal__fondo" @click="emit('close')"></div>
+    <div class="seguimientos-modal__fondo"></div>
     <div class="seguimientos-modal__panel">
       <h2 class="seguimientos-modal__titulo">
         Seguimientos de {{ props.lead?.contact || props.lead?.company || 'lead' }}
@@ -272,7 +273,7 @@ function confirmarEliminacion() {
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 50;
+  z-index: 1000;
 }
 
 .seguimientos-modal__fondo {

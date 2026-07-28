@@ -18,6 +18,14 @@ export const OPCIONES_MOTIVO_RECHAZO = [
   { value: 'no_desea', label: 'No desea' },
 ]
 
+/**
+ * Etiqueta legible de un valor de sub_estado_proceso (ej. 'follow_up' -> 'Follow-up').
+ * Devuelve el valor crudo si no se reconoce (dato legado o inesperado).
+ */
+export function etiquetaSubEstado(valor) {
+  return OPCIONES_SUB_ESTADO_PROCESO.find((opcion) => opcion.value === valor)?.label || valor
+}
+
 // Sub-estados de proceso que, además de marcar contacto, ya implican calificación y/o visita
 // (mapeo cumulativo: Follow-up también contactó, Citado también contactó y calificó).
 const SUB_ESTADOS_CONTACTO = ['contactado', 'llamar', 'volver_a_llamar', 'enviar_correo', 'follow_up', 'citado']

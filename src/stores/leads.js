@@ -1,12 +1,6 @@
 import { defineStore } from 'pinia'
 import { supabase } from '@/lib/supabase'
-import {
-  computeKPIs,
-  computeSourceRanking,
-  computeMonthlyEvolution,
-  computeLast30Days,
-  flattenLatestSeguimientos,
-} from '@/lib/leadMetrics'
+import { computeKPIs, computeSourceRanking, computeLast30Days, flattenLatestSeguimientos } from '@/lib/leadMetrics'
 
 // Store de leads: mantiene el estado de leads (con sus seguimientos anidados) y
 // delega todo cálculo de métricas a src/lib/leadMetrics.js.
@@ -21,7 +15,6 @@ export const useLeadsStore = defineStore('leads', {
   getters: {
     kpis: (state) => computeKPIs(state.leads),
     sourceRanking: (state) => computeSourceRanking(state.leads),
-    monthlyEvolution: (state) => computeMonthlyEvolution(state.leads),
     last30Days: (state) => computeLast30Days(state.leads),
     // Límite elevado (100) para que el preset "Todo" del filtro de fecha en
     // LatestSeguimientos.vue tenga historial real sobre el cual operar; el

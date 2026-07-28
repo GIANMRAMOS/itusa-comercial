@@ -1,7 +1,13 @@
 // Funciones puras de métricas de negocio sobre leads.
 // Portadas desde appscript/index.html; testeables sin Supabase.
 
-import { getCurrentDateGMT5, parseDateGMT5, formatDateGMT5, formatDateForDisplay } from '@/composables/useDateGMT5'
+import {
+  getCurrentDateGMT5,
+  parseDateGMT5,
+  formatDateGMT5,
+  formatDateForDisplay,
+  getTodayGMT5,
+} from '@/composables/useDateGMT5'
 
 /**
  * Estado de un lead. Precedencia: convertido > rechazado > proceso.
@@ -99,23 +105,6 @@ export function computeSourceRanking(leads = [], top = 6) {
 }
 
 /**
- * Evolución mensual: cantidad de leads por mes (YYYY-MM) de created_at, ordenado ascendente.
- */
-export function computeMonthlyEvolution(leads = []) {
-  const conteoPorMes = leads.reduce((acc, lead) => {
-    if (lead.created_at) {
-      const mes = lead.created_at.substring(0, 7)
-      acc[mes] = (acc[mes] || 0) + 1
-    }
-    return acc
-  }, {})
-
-  return Object.keys(conteoPorMes)
-    .sort()
-    .map((mes) => ({ mes, cantidad: conteoPorMes[mes] }))
-}
-
-/**
  * Cantidad de leads creados por día en los últimos 30 días (ventana en GMT-5).
  */
 export function computeLast30Days(leads = []) {
@@ -166,8 +155,8 @@ const NOMBRES_MESES = [
 /**
  * Últimos 3 meses calendario (mes actual + 2 anteriores) relativos a hoy (GMT-5),
  * ordenados del más reciente al más antiguo. Cada opción tiene clave YYYY-MM
- * (mismo formato que created_at.substring(0, 7) usado en computeMonthlyEvolution)
- * y una etiqueta legible en español, ej. "Julio 2026".
+ * (mismo formato que created_at.substring(0, 7)) y una etiqueta legible en
+ * español, ej. "Julio 2026".
  */
 export function getRecentMonthOptions() {
   const hoy = getCurrentDateGMT5()
@@ -226,4 +215,53 @@ export function flattenLatestSeguimientos(leads = [], limite = 10) {
   })
 
   return todosLosSeguimientos.slice(0, limite)
+}
+
+/**
+ * Tareas de próximo contacto: leads "En Proceso" cuya próxima fecha a contactar
+ * (fecha_sub_estado) cae dentro de la ventana [hoy-2, hoy+2] días, ordenadas por fecha
+ * ascendente (vencidas primero). Cada tarea trae su "urgencia" ('vencida' | 'hoy' | 'futura')
+ * y la descripción del último seguimiento registrado para ese lead, si existe.
+ */
+export function computeTareasProximoContacto(leads = [], hoyStr = getTodayGMT5()) {
+  const hoy = parseDateGMT5(hoyStr)
+  if (!hoy) return []
+
+  const inicioVentana = new Date(hoy)
+  inicioVentana.setDate(inicioVentana.getDate() - 2)
+  const finVentana = new Date(hoy)
+  finVentana.setDate(finVentana.getDate() + 2)
+
+  const tareas = leads
+    .map((lead) => ({ lead, fecha: parseDateGMT5(lead.fecha_sub_estado) }))
+    .filter(({ fecha }) => fecha && fecha >= inicioVentana && fecha <= finVentana)
+    .map(({ lead, fecha }) => {
+      let urgencia = 'futura'
+      if (fecha.getTime() < hoy.getTime()) urgencia = 'vencida'
+      else if (fecha.getTime() === hoy.getTime()) urgencia = 'hoy'
+
+      const ultimoSeguimiento = Array.isArray(lead.seguimientos)
+        ? [...lead.seguimientos].sort((a, b) => {
+            const fechaA = parseDateGMT5(a.fecha)
+            const fechaB = parseDateGMT5(b.fecha)
+            if (!fechaA && !fechaB) return 0
+            if (!fechaA) return 1
+            if (!fechaB) return -1
+            return fechaB.getTime() - fechaA.getTime()
+          })[0]
+        : null
+
+      return {
+        leadId: lead.id,
+        contact: lead.contact || 'Sin contacto',
+        company: lead.company || '',
+        estado: getStatus(lead),
+        subEstadoProceso: lead.sub_estado_proceso || '',
+        descripcion: ultimoSeguimiento?.texto || '',
+        fechaSubEstado: lead.fecha_sub_estado,
+        urgencia,
+      }
+    })
+
+  return tareas.sort((a, b) => parseDateGMT5(a.fechaSubEstado).getTime() - parseDateGMT5(b.fechaSubEstado).getTime())
 }

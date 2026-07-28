@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest'
-import { construirActualizacionEstado, OPCIONES_SUB_ESTADO_PROCESO, OPCIONES_MOTIVO_RECHAZO } from '@/lib/leadEstado'
+import {
+  construirActualizacionEstado,
+  etiquetaSubEstado,
+  OPCIONES_SUB_ESTADO_PROCESO,
+  OPCIONES_MOTIVO_RECHAZO,
+} from '@/lib/leadEstado'
 
 describe('construirActualizacionEstado', () => {
   it('estado proceso con sub-estado "llamar": mapea contactado_at si estaba vacío', () => {
@@ -109,5 +114,16 @@ describe('construirActualizacionEstado', () => {
       'no_contesto',
       'no_desea',
     ])
+  })
+})
+
+describe('etiquetaSubEstado', () => {
+  it('devuelve la etiqueta legible de un valor conocido', () => {
+    expect(etiquetaSubEstado('follow_up')).toBe('Follow-up')
+    expect(etiquetaSubEstado('volver_a_llamar')).toBe('Volver a Llamar')
+  })
+
+  it('devuelve el valor crudo si no reconoce el sub-estado', () => {
+    expect(etiquetaSubEstado('valor_legado')).toBe('valor_legado')
   })
 })

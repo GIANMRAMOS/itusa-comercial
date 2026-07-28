@@ -3,7 +3,7 @@ defineEmits(['click'])
 </script>
 
 <template>
-  <button type="button" class="add-lead-button" aria-label="Agregar lead" @click="$emit('click')">
+  <button type="button" class="add-lead-button" aria-label="Agregar lead" title="Agregar lead" @click="$emit('click')">
     +
   </button>
 </template>

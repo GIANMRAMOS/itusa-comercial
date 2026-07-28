@@ -22,10 +22,10 @@ import {
   computeKPIs,
   computeFunnel,
   computeSourceRanking,
-  computeMonthlyEvolution,
   computeLast30Days,
   getRecentMonthOptions,
   filterLeadsByMonthKeys,
+  computeTareasProximoContacto,
 } from '@/lib/leadMetrics'
 
 describe('getStatus', () => {
@@ -195,28 +195,6 @@ describe('computeSourceRanking', () => {
   })
 })
 
-describe('computeMonthlyEvolution', () => {
-  it('agrupa correctamente por mes (YYYY-MM), ordenado ascendente', () => {
-    const leads = [
-      { created_at: '2026-01-05' },
-      { created_at: '2026-01-20' },
-      { created_at: '2026-02-01' },
-      { created_at: '2026-03-15' },
-    ]
-
-    expect(computeMonthlyEvolution(leads)).toEqual([
-      { mes: '2026-01', cantidad: 2 },
-      { mes: '2026-02', cantidad: 1 },
-      { mes: '2026-03', cantidad: 1 },
-    ])
-  })
-
-  it('borde: array vacío retorna array vacío sin lanzar error', () => {
-    expect(() => computeMonthlyEvolution([])).not.toThrow()
-    expect(computeMonthlyEvolution([])).toEqual([])
-  })
-})
-
 describe('computeLast30Days', () => {
   it('agrupa correctamente por día dentro de la ventana de 30 días (GMT-5) e ignora lo que queda afuera', () => {
     const leads = [
@@ -327,5 +305,89 @@ describe('filterLeadsByMonthKeys', () => {
 
   it('borde: leads sin created_at quedan excluidos', () => {
     expect(filterLeadsByMonthKeys([{ id: 6 }], ['2026-07'])).toEqual([])
+  })
+})
+
+describe('computeTareasProximoContacto', () => {
+  const HOY = '2026-01-31'
+
+  it('incluye leads con fecha_sub_estado dentro de la ventana [-2, +2] y excluye los que quedan fuera', () => {
+    const leads = [
+      { id: 1, contact: 'Vencido lejos', fecha_sub_estado: '2026-01-27' }, // fuera (hoy-4)
+      { id: 2, contact: 'Vencido límite', fecha_sub_estado: '2026-01-29' }, // dentro (hoy-2)
+      { id: 3, contact: 'Hoy', fecha_sub_estado: '2026-01-31' },
+      { id: 4, contact: 'Futuro límite', fecha_sub_estado: '2026-02-02' }, // dentro (hoy+2)
+      { id: 5, contact: 'Futuro lejos', fecha_sub_estado: '2026-02-03' }, // fuera (hoy+3)
+      { id: 6, contact: 'Sin fecha', fecha_sub_estado: null },
+    ]
+
+    const tareas = computeTareasProximoContacto(leads, HOY)
+
+    expect(tareas.map((t) => t.leadId)).toEqual([2, 3, 4])
+  })
+
+  it('clasifica correctamente la urgencia: vencida, hoy y futura', () => {
+    const leads = [
+      { id: 1, fecha_sub_estado: '2026-01-30' },
+      { id: 2, fecha_sub_estado: '2026-01-31' },
+      { id: 3, fecha_sub_estado: '2026-02-01' },
+    ]
+
+    const tareas = computeTareasProximoContacto(leads, HOY)
+
+    expect(tareas.find((t) => t.leadId === 1).urgencia).toBe('vencida')
+    expect(tareas.find((t) => t.leadId === 2).urgencia).toBe('hoy')
+    expect(tareas.find((t) => t.leadId === 3).urgencia).toBe('futura')
+  })
+
+  it('ordena las tareas por fecha ascendente (vencidas primero)', () => {
+    const leads = [
+      { id: 1, fecha_sub_estado: '2026-02-01' },
+      { id: 2, fecha_sub_estado: '2026-01-29' },
+      { id: 3, fecha_sub_estado: '2026-01-31' },
+    ]
+
+    const tareas = computeTareasProximoContacto(leads, HOY)
+
+    expect(tareas.map((t) => t.leadId)).toEqual([2, 3, 1])
+  })
+
+  it('la descripción toma el texto del último seguimiento registrado (por fecha más reciente)', () => {
+    const leads = [
+      {
+        id: 1,
+        fecha_sub_estado: '2026-01-31',
+        seguimientos: [
+          { fecha: '2026-01-10', texto: 'Primer contacto' },
+          { fecha: '2026-01-25', texto: 'Seguimiento más reciente' },
+        ],
+      },
+    ]
+
+    const tareas = computeTareasProximoContacto(leads, HOY)
+
+    expect(tareas[0].descripcion).toBe('Seguimiento más reciente')
+  })
+
+  it('si el lead no tiene seguimientos, la descripción queda vacía', () => {
+    const leads = [{ id: 1, fecha_sub_estado: '2026-01-31', seguimientos: [] }]
+
+    const tareas = computeTareasProximoContacto(leads, HOY)
+
+    expect(tareas[0].descripcion).toBe('')
+  })
+
+  it('trae estado y sub_estado_proceso tal como están en el lead', () => {
+    const leads = [{ id: 1, fecha_sub_estado: '2026-01-31', sub_estado_proceso: 'follow_up' }]
+
+    const tareas = computeTareasProximoContacto(leads, HOY)
+
+    expect(tareas[0].estado).toBe('proceso')
+    expect(tareas[0].subEstadoProceso).toBe('follow_up')
+  })
+
+  it('borde: array vacío retorna array vacío sin lanzar error', () => {
+    expect(() => computeTareasProximoContacto([], HOY)).not.toThrow()
+    expect(computeTareasProximoContacto([], HOY)).toEqual([])
   })
 })

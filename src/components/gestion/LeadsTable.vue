@@ -2,7 +2,7 @@
 import { computed, ref } from 'vue'
 import { getStatus } from '@/lib/leadMetrics'
 import { parseDateGMT5 } from '@/composables/useDateGMT5'
-import { OPCIONES_SUB_ESTADO_PROCESO } from '@/lib/leadEstado'
+import { etiquetaSubEstado } from '@/lib/leadEstado'
 
 const props = defineProps({
   leads: {
@@ -119,9 +119,6 @@ function inicial(lead) {
   return (lead.contact || '').trim().charAt(0).toUpperCase() || '?'
 }
 
-function etiquetaSubEstado(valor) {
-  return OPCIONES_SUB_ESTADO_PROCESO.find((opcion) => opcion.value === valor)?.label || valor
-}
 </script>
 
 <template>
@@ -196,6 +193,7 @@ function etiquetaSubEstado(valor) {
                   :class="{ 'leads-table__boton-expandir--abierto': leadExpandidoId === lead.id }"
                   :aria-expanded="leadExpandidoId === lead.id"
                   :aria-label="leadExpandidoId === lead.id ? 'Contraer detalle del lead' : 'Expandir detalle del lead'"
+                  :title="leadExpandidoId === lead.id ? 'Contraer detalle del lead' : 'Expandir detalle del lead'"
                   @click="alternarExpandido(lead.id)"
                 >
                   <svg viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -217,6 +215,7 @@ function etiquetaSubEstado(valor) {
                   type="button"
                   class="leads-table__boton-icono"
                   :aria-label="`Editar lead de ${lead.contact || 'este lead'}`"
+                  :title="`Editar lead de ${lead.contact || 'este lead'}`"
                   @click="emit('editar-lead', lead)"
                 >
                   <svg viewBox="0 0 20 20" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -228,6 +227,7 @@ function etiquetaSubEstado(valor) {
                   type="button"
                   class="leads-table__boton-icono leads-table__boton-archivar"
                   :aria-label="`Archivar lead de ${lead.contact || 'este lead'}`"
+                  :title="`Archivar lead de ${lead.contact || 'este lead'}`"
                   @click="emit('archivar-lead', lead)"
                 >
                   <svg viewBox="0 0 20 20" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -239,6 +239,7 @@ function etiquetaSubEstado(valor) {
                   type="button"
                   class="leads-table__boton-icono leads-table__boton-eliminar"
                   :aria-label="`Eliminar lead de ${lead.contact || 'este lead'}`"
+                  :title="`Eliminar lead de ${lead.contact || 'este lead'}`"
                   @click="emit('eliminar-lead', lead)"
                 >
                   <svg viewBox="0 0 20 20" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -250,6 +251,7 @@ function etiquetaSubEstado(valor) {
                   type="button"
                   class="leads-table__boton-icono leads-table__boton-reactivar"
                   :aria-label="`Reactivar lead de ${lead.contact || 'este lead'}`"
+                  :title="`Reactivar lead de ${lead.contact || 'este lead'}`"
                   @click="emit('reactivar-lead', lead)"
                 >
                   <svg viewBox="0 0 20 20" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -269,6 +271,7 @@ function etiquetaSubEstado(valor) {
                       type="button"
                       class="leads-table__boton-icono"
                       aria-label="Agregar seguimiento"
+                      title="Agregar seguimiento"
                       @click="emit('abrir-seguimientos', lead)"
                     >
                       <svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
