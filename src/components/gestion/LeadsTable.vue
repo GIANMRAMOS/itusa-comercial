@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { getStatus } from '@/lib/leadMetrics'
 import { parseDateGMT5 } from '@/composables/useDateGMT5'
 import { etiquetaSubEstado } from '@/lib/leadEstado'
@@ -29,6 +29,11 @@ const props = defineProps({
     type: Boolean,
     default: true,
   },
+  // Id del lead a mostrar ya expandido al montar (ej. al llegar desde un enlace del Dashboard).
+  leadIdExpandidoInicial: {
+    type: [Number, String],
+    default: null,
+  },
 })
 
 const emit = defineEmits([
@@ -40,7 +45,26 @@ const emit = defineEmits([
 ])
 
 const busqueda = ref('')
-const leadExpandidoId = ref(null)
+// Los id de lead son uuid (string) en Supabase; el query param de la URL también llega
+// como string, así que se comparan tal cual, sin convertir a número.
+const leadExpandidoId = ref(props.leadIdExpandidoInicial ?? null)
+
+// Si se llegó con un lead a expandir de entrada, hace scroll hacia esa fila apenas
+// los leads terminan de cargar (una sola vez).
+if (leadExpandidoId.value != null) {
+  const detenerScrollInicial = watch(
+    () => props.leads,
+    async (leads) => {
+      if (!leads.some((lead) => lead.id === leadExpandidoId.value)) return
+      await nextTick()
+      document
+        .querySelector(`[data-lead-id="${leadExpandidoId.value}"]`)
+        ?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      detenerScrollInicial()
+    },
+    { immediate: true }
+  )
+}
 
 // Orden manual por columna: null = sin orden manual (default por fecha de creación)
 const ordenColumna = ref(null) // 'contact' | 'company' | null
@@ -114,10 +138,6 @@ function seguimientosOrdenados(lead) {
   })
 }
 
-// Inicial del contacto para el avatar; con fallback cuando no hay nombre
-function inicial(lead) {
-  return (lead.contact || '').trim().charAt(0).toUpperCase() || '?'
-}
 
 </script>
 
@@ -184,8 +204,12 @@ function inicial(lead) {
           </tr>
         </thead>
         <tbody>
-          <template v-for="lead in leadsFiltrados" :key="lead.id">
-            <tr class="leads-table__fila" :class="`leads-table__fila--${getStatus(lead)}`">
+          <template v-for="(lead, indice) in leadsFiltrados" :key="lead.id">
+            <tr
+              class="leads-table__fila"
+              :class="`leads-table__fila--${getStatus(lead)}`"
+              :data-lead-id="lead.id"
+            >
               <td class="leads-table__col-izquierda">
                 <button
                   type="button"
@@ -202,7 +226,7 @@ function inicial(lead) {
                 </button>
               </td>
               <td data-label="Contacto">
-                <span class="leads-table__avatar" aria-hidden="true">{{ inicial(lead) }}</span>
+                <span class="leads-table__avatar" aria-hidden="true">{{ indice + 1 }}</span>
                 <span class="leads-table__nombre-contacto">{{ lead.contact || '—' }}</span>
               </td>
               <td data-label="Empresa">{{ lead.company || '—' }}</td>

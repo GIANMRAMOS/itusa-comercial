@@ -1,6 +1,20 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { defineComponent, h } from 'vue'
 import { mount } from '@vue/test-utils'
 import TareasProximoContacto from '@/components/dashboard/TareasProximoContacto.vue'
+
+// Stub mínimo de <router-link>: renderiza un <a> con href = prop `to` (mismo patrón que App.test.js).
+const RouterLinkStub = defineComponent({
+  name: 'RouterLinkStub',
+  props: { to: { type: String, required: true } },
+  render() {
+    return h('a', { href: this.to }, this.$slots.default?.())
+  },
+})
+
+function montar(props) {
+  return mount(TareasProximoContacto, { props, global: { stubs: { RouterLink: RouterLinkStub } } })
+}
 
 // "Hoy" fijo en 31/01/2026 (mediodía, local) para que la ventana [-2, +2] sea determinista.
 const HOY = '2026-01-31'
@@ -34,7 +48,7 @@ describe('TareasProximoContacto', () => {
       crearLead({ id: 4, contact: 'Futuro límite', fecha_sub_estado: '2026-02-02' }),
       crearLead({ id: 5, contact: 'Convertido (sin fecha)', fecha_sub_estado: null }),
     ]
-    const wrapper = mount(TareasProximoContacto, { props: { leads } })
+    const wrapper = montar({ leads })
 
     const items = wrapper.findAll('.tareas__item')
     expect(items.length).toBe(3)
@@ -49,7 +63,7 @@ describe('TareasProximoContacto', () => {
       crearLead({ id: 2, contact: 'De hoy', fecha_sub_estado: '2026-01-31' }),
       crearLead({ id: 3, contact: 'Futuro', fecha_sub_estado: '2026-02-01' }),
     ]
-    const wrapper = mount(TareasProximoContacto, { props: { leads } })
+    const wrapper = montar({ leads })
 
     const items = wrapper.findAll('.tareas__item')
     const porContacto = (texto) => items.find((item) => item.text().includes(texto))
@@ -69,7 +83,7 @@ describe('TareasProximoContacto', () => {
         ],
       }),
     ]
-    const wrapper = mount(TareasProximoContacto, { props: { leads } })
+    const wrapper = montar({ leads })
 
     const item = wrapper.find('.tareas__item')
     expect(item.text()).toContain('En Proceso')
@@ -79,16 +93,25 @@ describe('TareasProximoContacto', () => {
 
   it('si no hay seguimientos registrados, muestra el texto de respaldo', () => {
     const leads = [crearLead({ seguimientos: [] })]
-    const wrapper = mount(TareasProximoContacto, { props: { leads } })
+    const wrapper = montar({ leads })
 
     expect(wrapper.find('.tareas__descripcion').text()).toBe('Sin seguimientos registrados.')
   })
 
   it('muestra el mensaje vacío cuando ningún lead cae dentro de la ventana', () => {
     const leads = [crearLead({ fecha_sub_estado: '2026-03-01' })]
-    const wrapper = mount(TareasProximoContacto, { props: { leads } })
+    const wrapper = montar({ leads })
 
     expect(wrapper.findAll('.tareas__item').length).toBe(0)
     expect(wrapper.find('.tareas__vacio').exists()).toBe(true)
+  })
+
+  it('el nombre del contacto enlaza a Gestión con el leadId de la tarea', () => {
+    const leads = [crearLead({ id: 42, contact: 'María López' })]
+    const wrapper = montar({ leads })
+
+    const enlace = wrapper.find('.tareas__item a')
+    expect(enlace.attributes('href')).toBe('/gestion?leadId=42')
+    expect(enlace.text()).toBe('María López')
   })
 })

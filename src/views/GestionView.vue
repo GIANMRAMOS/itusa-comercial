@@ -1,5 +1,6 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
+import { useRoute } from 'vue-router'
 import { useLeadsStore } from '@/stores/leads'
 import LeadsTable from '@/components/gestion/LeadsTable.vue'
 import LeadFormModal from '@/components/gestion/LeadFormModal.vue'
@@ -9,6 +10,10 @@ import ConfirmDialog from '@/components/shared/ConfirmDialog.vue'
 import LoadingOverlay from '@/components/shared/LoadingOverlay.vue'
 
 const leadsStore = useLeadsStore()
+const route = useRoute()
+
+// Permite llegar desde el Dashboard con ?leadId=123 y abrir ese lead ya expandido.
+const leadIdExpandidoInicial = typeof route.query.leadId === 'string' ? route.query.leadId : null
 
 const mostrarFormulario = ref(false)
 const leadEnEdicion = ref(null)
@@ -137,6 +142,7 @@ async function archivarLead(lead) {
     <LeadsTable
       :leads="leadsStore.leads"
       :mostrar-archivar="true"
+      :lead-id-expandido-inicial="leadIdExpandidoInicial"
       @editar-lead="abrirEdicionLead"
       @eliminar-lead="pedirConfirmacionEliminar"
       @abrir-seguimientos="abrirSeguimientos"

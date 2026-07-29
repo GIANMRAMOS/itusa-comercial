@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { defineComponent, h } from 'vue'
 import { mount } from '@vue/test-utils'
 import LatestSeguimientos from '@/components/dashboard/LatestSeguimientos.vue'
 
@@ -8,6 +9,19 @@ const HOY = '2026-06-15'
 const AYER = '2026-06-14'
 const HACE_5_DIAS = '2026-06-10'
 const HACE_20_DIAS = '2026-05-26'
+
+// Stub mínimo de <router-link>: renderiza un <a> con href = prop `to` (mismo patrón que App.test.js).
+const RouterLinkStub = defineComponent({
+  name: 'RouterLinkStub',
+  props: { to: { type: String, required: true } },
+  render() {
+    return h('a', { href: this.to }, this.$slots.default?.())
+  },
+})
+
+function montar(props) {
+  return mount(LatestSeguimientos, { props, global: { stubs: { RouterLink: RouterLinkStub } } })
+}
 
 function crearSeguimiento(fecha, sufijo) {
   return {
@@ -37,7 +51,7 @@ describe('LatestSeguimientos', () => {
   ]
 
   it('por defecto ("Hoy y ayer") solo muestra los seguimientos de hoy y ayer', () => {
-    const wrapper = mount(LatestSeguimientos, { props: { seguimientos } })
+    const wrapper = montar({ seguimientos })
     const textos = wrapper.findAll('.ultimos-seguimientos__item').map((item) => item.text())
 
     expect(wrapper.find('select').element.value).toBe('hoy_ayer')
@@ -49,7 +63,7 @@ describe('LatestSeguimientos', () => {
   })
 
   it('con "Últimos 7 días" muestra hoy, ayer y hace 5 días, pero no el de hace 20', async () => {
-    const wrapper = mount(LatestSeguimientos, { props: { seguimientos } })
+    const wrapper = montar({ seguimientos })
 
     await wrapper.find('select').setValue('ultimos_7_dias')
     const textos = wrapper.findAll('.ultimos-seguimientos__item').map((item) => item.text())
@@ -62,7 +76,7 @@ describe('LatestSeguimientos', () => {
   })
 
   it('con "Todo" muestra todos los seguimientos recibidos por prop', async () => {
-    const wrapper = mount(LatestSeguimientos, { props: { seguimientos } })
+    const wrapper = montar({ seguimientos })
 
     await wrapper.find('select').setValue('todo')
     const textos = wrapper.findAll('.ultimos-seguimientos__item').map((item) => item.text())
@@ -76,7 +90,7 @@ describe('LatestSeguimientos', () => {
   it('muestra el estado vacío de rango cuando el preset activo no matchea ningún seguimiento', () => {
     // Solo hay un seguimiento y cae fuera del rango del preset por defecto ("Hoy y ayer").
     const soloAntiguos = [crearSeguimiento(HACE_20_DIAS, 'hace20')]
-    const wrapper = mount(LatestSeguimientos, { props: { seguimientos: soloAntiguos } })
+    const wrapper = montar({ seguimientos: soloAntiguos })
 
     expect(wrapper.findAll('.ultimos-seguimientos__item').length).toBe(0)
     expect(wrapper.find('.ultimos-seguimientos__vacio').exists()).toBe(true)
@@ -84,9 +98,18 @@ describe('LatestSeguimientos', () => {
   })
 
   it('muestra el mensaje de "sin seguimientos registrados" cuando la prop viene vacía', () => {
-    const wrapper = mount(LatestSeguimientos, { props: { seguimientos: [] } })
+    const wrapper = montar({ seguimientos: [] })
 
     expect(wrapper.findAll('.ultimos-seguimientos__item').length).toBe(0)
     expect(wrapper.find('.ultimos-seguimientos__vacio').text()).toBe('Sin seguimientos registrados todavía.')
+  })
+
+  it('el nombre del contacto enlaza a Gestión con el leadId del seguimiento', () => {
+    const wrapper = montar({ seguimientos })
+
+    const primerItem = wrapper.findAll('.ultimos-seguimientos__item')[0]
+    const enlace = primerItem.find('a')
+    expect(enlace.attributes('href')).toBe('/gestion?leadId=lead-hoy')
+    expect(enlace.text()).toBe('Contacto hoy')
   })
 })

@@ -4,6 +4,7 @@ import { mount } from '@vue/test-utils'
 import { setActivePinia, createPinia } from 'pinia'
 import App from '@/App.vue'
 import { useAuthStore } from '@/stores/auth'
+import { useLeadsStore } from '@/stores/leads'
 
 // __APP_VERSION__ es el mismo global que Vite inyecta en el componente real (ver `define`
 // en vite.config.js, aplicado también a vitest porque ambos comparten el mismo archivo de
@@ -39,12 +40,21 @@ const RouterLinkStub = defineComponent({
 // Setea el estado del store ANTES de montar: si se setea después, el DOM inicial ya
 // renderizado no refleja el cambio hasta el próximo tick de Vue, lo que generaba falsos
 // negativos (nodos "vacíos") en las aserciones síncronas de abajo.
-function montarApp({ session = null, user = null } = {}) {
+function montarApp({ session = null, user = null, leads = null, leadsArchivados = null } = {}) {
   const pinia = createPinia()
   setActivePinia(pinia)
   const authStore = useAuthStore()
   authStore.session = session
   authStore.user = user
+
+  const leadsStore = useLeadsStore()
+  // Se setean ANTES de montar, igual que la sesión: el watch(isAuthenticated, {immediate:true})
+  // de App.vue dispara fetchLeads/fetchLeadsArchivados al montar, pero como el supabase
+  // mockeado no tiene `.from(...)`, esas llamadas fallan silenciosamente (quedan atrapadas
+  // en el try/catch del store) sin tocar `leads`/`leadsArchivados` — por eso el valor seteado
+  // acá sobrevive al mount.
+  if (leads) leadsStore.leads = leads
+  if (leadsArchivados) leadsStore.leadsArchivados = leadsArchivados
 
   const wrapper = mount(App, {
     global: {
@@ -55,7 +65,7 @@ function montarApp({ session = null, user = null } = {}) {
     },
   })
 
-  return { wrapper, authStore }
+  return { wrapper, authStore, leadsStore }
 }
 
 describe('App.vue - navegación', () => {
@@ -97,6 +107,33 @@ describe('App.vue - navegación', () => {
       expect(destinos).toContain('/dashboard')
       expect(destinos).toContain('/gestion')
       expect(destinos).toContain('/archivados')
+    })
+
+    it('el link de Gestión y Archivados muestra la cantidad de leads entre paréntesis', () => {
+      const { wrapper } = montarApp({
+        session: { access_token: 'token-simulado' },
+        user: { email: 'usuario@itusa.com' },
+        leads: [{ id: 1 }, { id: 2 }, { id: 3 }],
+        leadsArchivados: [{ id: 4 }],
+      })
+
+      const links = wrapper.findAll('a')
+      const gestionLink = links.find((link) => link.attributes('href') === '/gestion')
+      const archivadosLink = links.find((link) => link.attributes('href') === '/archivados')
+
+      expect(gestionLink.text()).toBe('Gestión (3)')
+      expect(archivadosLink.text()).toBe('Archivados (1)')
+    })
+
+    it('sin leads cargados todavía, muestra el contador en (0)', () => {
+      const { wrapper } = montarAutenticado()
+
+      const links = wrapper.findAll('a')
+      const gestionLink = links.find((link) => link.attributes('href') === '/gestion')
+      const archivadosLink = links.find((link) => link.attributes('href') === '/archivados')
+
+      expect(gestionLink.text()).toBe('Gestión (0)')
+      expect(archivadosLink.text()).toBe('Archivados (0)')
     })
 
     it('al hacer click en "Cerrar sesión" invoca authStore.signOut y router.push("/login")', async () => {

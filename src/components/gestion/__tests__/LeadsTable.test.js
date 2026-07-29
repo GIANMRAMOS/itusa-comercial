@@ -31,6 +31,27 @@ describe('LeadsTable', () => {
     expect(dataLabels).toEqual(ETIQUETAS_ESPERADAS)
   })
 
+  it('muestra un número correlativo (1, 2, 3...) en vez de la inicial del contacto, según el orden visible', () => {
+    const leads = [crearLead({ id: 1, contact: 'Ana' }), crearLead({ id: 2, contact: 'Beto' }), crearLead({ id: 3, contact: 'Caro' })]
+    const wrapper = mount(LeadsTable, { props: { leads } })
+
+    const numeros = wrapper.findAll('.leads-table__avatar').map((avatar) => avatar.text())
+    expect(numeros).toEqual(['1', '2', '3'])
+  })
+
+  it('el número correlativo se recalcula según el orden manual por columna (no queda fijo al id)', async () => {
+    const leads = [crearLead({ id: 1, contact: 'Zulema' }), crearLead({ id: 2, contact: 'Andrea' })]
+    const wrapper = mount(LeadsTable, { props: { leads } })
+
+    await wrapper.find('.leads-table__boton-orden').trigger('click') // ordena por Contacto A-Z
+
+    const filas = wrapper.findAll('.leads-table__fila')
+    expect(filas[0].text()).toContain('Andrea')
+    expect(filas[0].find('.leads-table__avatar').text()).toBe('1')
+    expect(filas[1].text()).toContain('Zulema')
+    expect(filas[1].find('.leads-table__avatar').text()).toBe('2')
+  })
+
   it('asigna la clase --convertido cuando el lead tiene conversion_at', async () => {
     const wrapper = mount(LeadsTable, {
       props: { leads: [crearLead({ conversion_at: '2024-02-01T00:00:00.000Z' })] },
@@ -495,6 +516,32 @@ describe('LeadsTable', () => {
 
       const botonSeguimiento = wrapper.find('.leads-table__historial-cabecera .leads-table__boton-icono')
       expect(botonSeguimiento.exists()).toBe(true)
+    })
+  })
+
+  describe('prop leadIdExpandidoInicial (llegar desde el Dashboard con un lead a expandir)', () => {
+    it('muestra ya expandido el historial del lead cuyo id coincide con la prop', () => {
+      const leads = [crearLead({ id: 1, contact: 'Uno' }), crearLead({ id: 2, contact: 'Dos' })]
+      const wrapper = mount(LeadsTable, { props: { leads, leadIdExpandidoInicial: 2 } })
+
+      expect(wrapper.find('.leads-table__fila-expandida').exists()).toBe(true)
+      expect(wrapper.find('.leads-table__fila-expandida').text()).not.toBe('')
+      const filas = wrapper.findAll('.leads-table__fila')
+      expect(filas[1].attributes('data-lead-id')).toBe('2')
+    })
+
+    it('matchea contra un id uuid (string), como los ids reales de Supabase y el query param de la URL', () => {
+      const uuid = 'e840ec59-5835-490b-a473-80a0f72f460c'
+      const leads = [crearLead({ id: uuid, contact: 'Con uuid' })]
+      const wrapper = mount(LeadsTable, { props: { leads, leadIdExpandidoInicial: uuid } })
+
+      expect(wrapper.find('.leads-table__fila-expandida').exists()).toBe(true)
+    })
+
+    it('sin la prop (default null), ningún lead arranca expandido', () => {
+      const wrapper = mount(LeadsTable, { props: { leads: [crearLead()] } })
+
+      expect(wrapper.find('.leads-table__fila-expandida').exists()).toBe(false)
     })
   })
 })

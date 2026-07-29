@@ -32,7 +32,7 @@ function formatearFecha(fecha) {
   <section class="tareas">
     <div class="tareas__cabecera-seccion">
       <div>
-        <h2 class="tareas__titulo">📋 Próximos contactos</h2>
+        <h2 class="tareas__titulo">📋 Atención a estos pendientes:</h2>
         <p class="tareas__subtitulo">Leads a contactar (2 días antes y después de hoy)</p>
       </div>
       <span class="tareas__contador">{{ tareas.length }}</span>
@@ -48,7 +48,13 @@ function formatearFecha(fecha) {
         :class="`tareas__item--${tarea.urgencia}`"
       >
         <div class="tareas__cabecera">
-          <span class="tareas__contacto">{{ tarea.contact }}</span>
+          <router-link
+            :to="`/gestion?leadId=${tarea.leadId}`"
+            class="tareas__contacto"
+            :title="`Ver historial de ${tarea.contact} en Gestión`"
+          >
+            {{ tarea.contact }}
+          </router-link>
           <span class="tareas__fecha cifra">{{ formatearFecha(tarea.fechaSubEstado) }}</span>
         </div>
         <div class="tareas__meta">
@@ -153,6 +159,12 @@ function formatearFecha(fecha) {
 .tareas__contacto {
   font-weight: 600;
   color: var(--color-texto);
+  text-decoration: none;
+}
+
+.tareas__contacto:hover {
+  color: var(--color-primario);
+  text-decoration: underline;
 }
 
 .tareas__fecha {

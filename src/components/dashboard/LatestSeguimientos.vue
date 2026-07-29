@@ -54,7 +54,16 @@ const seguimientosFiltrados = computed(() => {
         class="ultimos-seguimientos__item"
       >
         <div class="ultimos-seguimientos__cabecera">
-          <span class="ultimos-seguimientos__contacto">{{ seguimiento.contact }} · {{ seguimiento.company }}</span>
+          <span class="ultimos-seguimientos__contacto">
+            <router-link
+              :to="`/gestion?leadId=${seguimiento.leadId}`"
+              class="ultimos-seguimientos__enlace-contacto"
+              :title="`Ver historial de ${seguimiento.contact} en Gestión`"
+            >
+              {{ seguimiento.contact }}
+            </router-link>
+            · {{ seguimiento.company }}
+          </span>
           <span class="ultimos-seguimientos__fecha cifra">{{ seguimiento.fecha }}</span>
         </div>
         <p class="ultimos-seguimientos__texto">{{ seguimiento.texto }}</p>
@@ -121,6 +130,16 @@ const seguimientosFiltrados = computed(() => {
   justify-content: space-between;
   font-weight: 600;
   gap: 1rem;
+}
+
+.ultimos-seguimientos__enlace-contacto {
+  color: inherit;
+  text-decoration: none;
+}
+
+.ultimos-seguimientos__enlace-contacto:hover {
+  color: var(--color-primario);
+  text-decoration: underline;
 }
 
 .ultimos-seguimientos__fecha {

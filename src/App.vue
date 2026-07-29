@@ -2,11 +2,28 @@
 // Shell raíz de la aplicación.
 // Los componentes globales <LoadingOverlay> y <ConfirmDialog> (Chunk G) se integrarán aquí
 // una vez existan en src/components/shared/.
+import { watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { useLeadsStore } from '@/stores/leads'
 
 const router = useRouter()
 const authStore = useAuthStore()
+const leadsStore = useLeadsStore()
+
+// Carga los leads (Gestión y Archivados) apenas hay sesión, para que el conteo del sidebar
+// esté disponible sin importar en qué pantalla esté el usuario. `immediate` cubre tanto el
+// caso de sesión ya restaurada al montar como el de iniciar sesión recién en LoginView.
+watch(
+  () => authStore.isAuthenticated,
+  (autenticado) => {
+    if (autenticado) {
+      leadsStore.fetchLeads()
+      leadsStore.fetchLeadsArchivados()
+    }
+  },
+  { immediate: true }
+)
 
 // __APP_VERSION__ es una constante global inyectada por Vite (ver define en vite.config.js):
 // versión de package.json. Se muestra en el pie del sidebar de desktop.
@@ -22,8 +39,8 @@ async function cerrarSesion() {
   <nav v-if="authStore.isAuthenticated" class="barra-navegacion">
     <span class="barra-navegacion__marca">ITUSA Comercial</span>
     <router-link to="/dashboard">Dashboard</router-link>
-    <router-link to="/gestion">Gestión</router-link>
-    <router-link to="/archivados">Archivados</router-link>
+    <router-link to="/gestion">Gestión ({{ leadsStore.leads.length }})</router-link>
+    <router-link to="/archivados">Archivados ({{ leadsStore.leadsArchivados.length }})</router-link>
     <span class="barra-navegacion__email">{{ authStore.user?.email }}</span>
     <button type="button" class="barra-navegacion__cerrar-sesion" @click="cerrarSesion">Cerrar sesión</button>
     <span class="barra-navegacion__version">v{{ version }}</span>
