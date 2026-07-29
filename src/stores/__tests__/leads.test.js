@@ -244,65 +244,77 @@ describe('useLeadsStore.deleteLead', () => {
 })
 
 describe('useLeadsStore.archivarLead', () => {
-  it('invoca update({archivado:true})/eq() y quita el lead de state.leads', async () => {
+  it('invoca update({archivado:true})/eq(), quita el lead de state.leads y lo agrega a state.leadsArchivados', async () => {
     const eq = vi.fn().mockResolvedValue({ error: null })
     const update = vi.fn(() => ({ eq }))
     supabase.from.mockReturnValue({ update })
 
     const store = useLeadsStore()
-    store.leads = [{ id: 1 }, { id: 2 }]
+    store.leads = [{ id: 1, contact: 'Uno' }, { id: 2 }]
+    store.leadsArchivados = [{ id: 9 }]
     const resultado = await store.archivarLead(1)
 
     expect(supabase.from).toHaveBeenCalledWith('leads')
     expect(update).toHaveBeenCalledWith({ archivado: true })
     expect(eq).toHaveBeenCalledWith('id', 1)
     expect(store.leads).toEqual([{ id: 2 }])
+    // Se mueve al frente de leadsArchivados con archivado:true, para que el contador
+    // de "Archivados" en el sidebar refleje el cambio sin esperar a visitar esa pantalla.
+    expect(store.leadsArchivados).toEqual([{ id: 1, contact: 'Uno', archivado: true }, { id: 9 }])
     expect(resultado).toEqual({ success: true })
   })
 
-  it('borde: si Supabase retorna error, setea error, NO quita nada de state.leads y retorna success:false', async () => {
+  it('borde: si Supabase retorna error, setea error, NO toca leads ni leadsArchivados y retorna success:false', async () => {
     const eq = vi.fn().mockResolvedValue({ error: { message: 'No se pudo archivar' } })
     const update = vi.fn(() => ({ eq }))
     supabase.from.mockReturnValue({ update })
 
     const store = useLeadsStore()
     store.leads = [{ id: 1 }, { id: 2 }]
+    store.leadsArchivados = []
     const resultado = await store.archivarLead(1)
 
     expect(store.error).toBe('No se pudo archivar')
     expect(store.leads).toEqual([{ id: 1 }, { id: 2 }])
+    expect(store.leadsArchivados).toEqual([])
     expect(resultado).toEqual({ success: false, error: 'No se pudo archivar' })
   })
 })
 
 describe('useLeadsStore.reactivarLead', () => {
-  it('invoca update({archivado:false})/eq() y quita el lead de state.leadsArchivados', async () => {
+  it('invoca update({archivado:false})/eq(), quita el lead de state.leadsArchivados y lo agrega a state.leads', async () => {
     const eq = vi.fn().mockResolvedValue({ error: null })
     const update = vi.fn(() => ({ eq }))
     supabase.from.mockReturnValue({ update })
 
     const store = useLeadsStore()
-    store.leadsArchivados = [{ id: 1 }, { id: 2 }]
+    store.leadsArchivados = [{ id: 1, contact: 'Uno' }, { id: 2 }]
+    store.leads = [{ id: 9 }]
     const resultado = await store.reactivarLead(1)
 
     expect(supabase.from).toHaveBeenCalledWith('leads')
     expect(update).toHaveBeenCalledWith({ archivado: false })
     expect(eq).toHaveBeenCalledWith('id', 1)
     expect(store.leadsArchivados).toEqual([{ id: 2 }])
+    // Se mueve al frente de leads con archivado:false, para que el contador de "Gestión"
+    // en el sidebar refleje el cambio sin esperar a visitar esa pantalla.
+    expect(store.leads).toEqual([{ id: 1, contact: 'Uno', archivado: false }, { id: 9 }])
     expect(resultado).toEqual({ success: true })
   })
 
-  it('borde: si Supabase retorna error, setea error, deja state.leadsArchivados intacto y retorna success:false', async () => {
+  it('borde: si Supabase retorna error, setea error, deja state.leadsArchivados y state.leads intactos y retorna success:false', async () => {
     const eq = vi.fn().mockResolvedValue({ error: { message: 'No se pudo reactivar' } })
     const update = vi.fn(() => ({ eq }))
     supabase.from.mockReturnValue({ update })
 
     const store = useLeadsStore()
     store.leadsArchivados = [{ id: 1 }, { id: 2 }]
+    store.leads = []
     const resultado = await store.reactivarLead(1)
 
     expect(store.error).toBe('No se pudo reactivar')
     expect(store.leadsArchivados).toEqual([{ id: 1 }, { id: 2 }])
+    expect(store.leads).toEqual([])
     expect(resultado).toEqual({ success: false, error: 'No se pudo reactivar' })
   })
 })

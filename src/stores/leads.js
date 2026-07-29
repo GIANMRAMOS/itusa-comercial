@@ -131,7 +131,14 @@ export const useLeadsStore = defineStore('leads', {
           this.error = error.message
           return { success: false, error: error.message }
         }
-        this.leads = this.leads.filter((lead) => lead.id !== leadId)
+        // Mueve el lead entre las dos listas en memoria (no solo lo saca de `leads`) para que
+        // el contador de Gestión Y Archivados del sidebar se actualicen al instante, sin
+        // depender de que el usuario visite Archivados para refrescarlo con fetchLeadsArchivados.
+        const lead = this.leads.find((l) => l.id === leadId)
+        this.leads = this.leads.filter((l) => l.id !== leadId)
+        if (lead) {
+          this.leadsArchivados = [{ ...lead, archivado: true }, ...this.leadsArchivados]
+        }
         return { success: true }
       } catch (error) {
         this.error = error.message
@@ -147,7 +154,11 @@ export const useLeadsStore = defineStore('leads', {
           this.error = error.message
           return { success: false, error: error.message }
         }
-        this.leadsArchivados = this.leadsArchivados.filter((lead) => lead.id !== leadId)
+        const lead = this.leadsArchivados.find((l) => l.id === leadId)
+        this.leadsArchivados = this.leadsArchivados.filter((l) => l.id !== leadId)
+        if (lead) {
+          this.leads = [{ ...lead, archivado: false }, ...this.leads]
+        }
         return { success: true }
       } catch (error) {
         this.error = error.message
