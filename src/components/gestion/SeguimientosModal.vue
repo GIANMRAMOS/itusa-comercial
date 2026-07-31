@@ -2,7 +2,12 @@
 import { computed, ref } from 'vue'
 import { getTodayGMT5, parseDateGMT5 } from '@/composables/useDateGMT5'
 import { getStatus } from '@/lib/leadMetrics'
-import { OPCIONES_SUB_ESTADO_PROCESO, OPCIONES_MOTIVO_RECHAZO, construirActualizacionEstado } from '@/lib/leadEstado'
+import {
+  OPCIONES_SUB_ESTADO_PROCESO,
+  OPCIONES_MOTIVO_RECHAZO,
+  OPCIONES_PROXIMO_CONTACTO,
+  construirActualizacionEstado,
+} from '@/lib/leadEstado'
 import ConfirmDialog from '@/components/shared/ConfirmDialog.vue'
 
 const props = defineProps({
@@ -29,6 +34,9 @@ const fechaSubEstado = ref(props.lead?.fecha_sub_estado || getTodayGMT5())
 const conversionAt = ref(props.lead?.conversion_at || getTodayGMT5())
 const rechazoAt = ref(props.lead?.rechazo_at || getTodayGMT5())
 const motivoRechazo = ref(props.lead?.motivo_rechazo || '')
+// Siempre parte de un valor real (nunca vacío): "Sin seguimiento" cubre el caso obligatorio
+// sin forzar a elegir Llamar/Mail cuando todavía no se definió un medio de contacto.
+const proximoContacto = ref(props.lead?.proximo_contacto || 'sin_seguimiento')
 
 const mostrarConfirmacionEliminar = ref(false)
 const seguimientoPendienteEliminar = ref(null)
@@ -101,6 +109,7 @@ function manejarSubmitForm() {
       contactadoAt: props.lead?.contactado_at,
       calificadoAt: props.lead?.calificado_at,
       visitaAt: props.lead?.visita_at,
+      proximoContacto: proximoContacto.value,
     })
 
     emit('agregar-seguimiento', {
@@ -212,10 +221,21 @@ function confirmarEliminacion() {
             </label>
           </div>
 
-          <label v-if="estado === 'proceso'" class="seguimientos-modal__campo">
-            <span>Prox. fecha a contactar</span>
-            <input v-model="fechaSubEstado" type="date" required />
-          </label>
+          <div v-if="estado === 'proceso'" class="seguimientos-modal__fila">
+            <label class="seguimientos-modal__campo">
+              <span>Prox. fecha a contactar</span>
+              <input v-model="fechaSubEstado" type="date" required />
+            </label>
+
+            <label class="seguimientos-modal__campo">
+              <span>Próx. Contacto</span>
+              <select v-model="proximoContacto" required>
+                <option v-for="opcion in OPCIONES_PROXIMO_CONTACTO" :key="opcion.value" :value="opcion.value">
+                  {{ opcion.label }}
+                </option>
+              </select>
+            </label>
+          </div>
 
           <label v-if="estado === 'convertido'" class="seguimientos-modal__campo">
             <span>Fecha de convertido</span>

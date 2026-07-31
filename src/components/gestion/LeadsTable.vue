@@ -34,6 +34,21 @@ const props = defineProps({
     type: [Number, String],
     default: null,
   },
+  // Las siguientes 3 props están apagadas por defecto (Archivados no las activa) y solo
+  // GestionView.vue las prende: columna de última fecha de contacto, bloque de Requerimiento
+  // en el panel expandido, y pintado de fondo de fila según el Estado del lead.
+  mostrarUltimaFechaContacto: {
+    type: Boolean,
+    default: false,
+  },
+  mostrarRequerimiento: {
+    type: Boolean,
+    default: false,
+  },
+  pintarFilaPorEstado: {
+    type: Boolean,
+    default: false,
+  },
 })
 
 const emit = defineEmits([
@@ -67,7 +82,7 @@ if (leadExpandidoId.value != null) {
 }
 
 // Orden manual por columna: null = sin orden manual (default por fecha de creación)
-const ordenColumna = ref(null) // 'contact' | 'company' | null
+const ordenColumna = ref(null) // 'contact' | 'company' | 'ultimo_contacto' | null
 const ordenDireccion = ref('asc') // 'asc' | 'desc'
 
 // Alterna el orden manual de una columna: cambia de columna reinicia en A-Z,
@@ -93,6 +108,19 @@ const leadsFiltrados = computed(() => {
     : props.leads
 
   return [...filtrados].sort((a, b) => {
+    if (ordenColumna.value === 'ultimo_contacto') {
+      // Ordena por la fecha real (no por el texto formateado); los leads sin seguimientos
+      // quedan siempre al final, sin importar la dirección (mismo criterio que el orden
+      // por defecto de abajo para leads sin created_at).
+      const fechaA = parseDateGMT5(seguimientosOrdenados(a)[0]?.fecha)
+      const fechaB = parseDateGMT5(seguimientosOrdenados(b)[0]?.fecha)
+      if (!fechaA && !fechaB) return 0
+      if (!fechaA) return 1
+      if (!fechaB) return -1
+      const comparacion = fechaA.getTime() - fechaB.getTime()
+      return ordenDireccion.value === 'asc' ? comparacion : -comparacion
+    }
+
     if (ordenColumna.value) {
       const valorA = (a[ordenColumna.value] || '').toString().toLowerCase()
       const valorB = (b[ordenColumna.value] || '').toString().toLowerCase()
@@ -138,7 +166,16 @@ function seguimientosOrdenados(lead) {
   })
 }
 
+// Última fecha de contacto: la del registro más reciente del historial de seguimientos.
+// Si el lead no tiene seguimientos todavía, no debe mostrar nada (ni siquiera "—").
+function ultimaFechaContacto(lead) {
+  const ultimo = seguimientosOrdenados(lead)[0]
+  return ultimo ? formatearFechaCompleta(ultimo.fecha) : ''
+}
 
+// Cantidad de columnas de datos visibles (Contacto/Empresa/Correo/Teléfono/[Última fecha
+// contacto]/Factura/Acciones), usada para el colspan de la fila expandida y "sin resultados".
+const totalColumnas = computed(() => (props.mostrarUltimaFechaContacto ? 8 : 7))
 </script>
 
 <template>
@@ -199,6 +236,26 @@ function seguimientosOrdenados(lead) {
             </th>
             <th>Correo</th>
             <th>Teléfono</th>
+            <th v-if="mostrarUltimaFechaContacto">
+              <button type="button" class="leads-table__boton-orden" @click="alternarOrden('ultimo_contacto')">
+                Última fecha de contacto
+                <svg
+                  v-if="ordenColumna === 'ultimo_contacto'"
+                  viewBox="0 0 20 20"
+                  width="12"
+                  height="12"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                  :style="{ transform: ordenDireccion === 'desc' ? 'rotate(180deg)' : 'none' }"
+                >
+                  <path d="M5 8l5 5 5-5" />
+                </svg>
+              </button>
+            </th>
             <th>Factura</th>
             <th class="leads-table__col-derecha">Acciones</th>
           </tr>
@@ -207,7 +264,10 @@ function seguimientosOrdenados(lead) {
           <template v-for="(lead, indice) in leadsFiltrados" :key="lead.id">
             <tr
               class="leads-table__fila"
-              :class="`leads-table__fila--${getStatus(lead)}`"
+              :class="[
+                `leads-table__fila--${getStatus(lead)}`,
+                { 'leads-table__fila--pintada': pintarFilaPorEstado },
+              ]"
               :data-lead-id="lead.id"
             >
               <td class="leads-table__col-izquierda">
@@ -229,9 +289,12 @@ function seguimientosOrdenados(lead) {
                 <span class="leads-table__avatar" aria-hidden="true">{{ indice + 1 }}</span>
                 <span class="leads-table__nombre-contacto">{{ lead.contact || '—' }}</span>
               </td>
-              <td data-label="Empresa">{{ lead.company || '—' }}</td>
-              <td data-label="Correo">{{ lead.email || '—' }}</td>
+              <td data-label="Empresa" class="leads-table__celda-truncada">{{ lead.company || '—' }}</td>
+              <td data-label="Correo" class="leads-table__celda-truncada">{{ lead.email || '—' }}</td>
               <td data-label="Teléfono">{{ lead.phone || '—' }}</td>
+              <td v-if="mostrarUltimaFechaContacto" data-label="Última fecha de contacto" class="cifra">
+                {{ ultimaFechaContacto(lead) }}
+              </td>
               <td data-label="Factura"><span class="cifra" :class="{ 'cifra--ingreso': lead.factura }">{{ formatearFactura(lead.factura) }}</span></td>
               <td data-label="Acciones" class="leads-table__acciones leads-table__col-derecha">
                 <button
@@ -285,8 +348,12 @@ function seguimientosOrdenados(lead) {
               </td>
             </tr>
             <tr v-if="leadExpandidoId === lead.id" class="leads-table__fila-expandida">
-              <td colspan="7">
+              <td :colspan="totalColumnas">
                 <div class="leads-table__historial">
+                  <div v-if="mostrarRequerimiento && lead.requerimiento" class="leads-table__requerimiento">
+                    <span class="leads-table__requerimiento-etiqueta">Requerimiento</span>
+                    <p class="leads-table__requerimiento-texto">{{ lead.requerimiento }}</p>
+                  </div>
                   <div class="leads-table__historial-cabecera">
                     <h3 class="leads-table__historial-titulo">Historial de seguimientos</h3>
                     <span class="leads-table__historial-contador">{{ seguimientosOrdenados(lead).length }}</span>
@@ -337,7 +404,7 @@ function seguimientosOrdenados(lead) {
             </tr>
           </template>
           <tr v-if="leadsFiltrados.length === 0">
-            <td colspan="7" class="leads-table__sin-resultados">No hay leads que coincidan con la búsqueda.</td>
+            <td :colspan="totalColumnas" class="leads-table__sin-resultados">No hay leads que coincidan con la búsqueda.</td>
           </tr>
         </tbody>
       </table>
@@ -373,15 +440,24 @@ function seguimientosOrdenados(lead) {
 .leads-table__tabla {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.85rem;
+  font-size: 0.8rem;
 }
 
 .leads-table__tabla th,
 .leads-table__tabla td {
-  padding: 0.6rem 0.75rem;
+  padding: 0.5rem 0.55rem;
   text-align: left;
   border-bottom: 1px solid #eef0f3;
   white-space: nowrap;
+}
+
+/* Empresa/Correo se truncan con elipsis: son los campos más largos y menos críticos de ver
+   completos de un vistazo (el detalle completo está en Editar); así entra la columna nueva
+   de Última fecha de contacto sin forzar scroll horizontal ni romper el layout. */
+.leads-table__celda-truncada {
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .leads-table__boton-orden {
@@ -444,6 +520,36 @@ function seguimientosOrdenados(lead) {
 
 .leads-table__fila--proceso {
   border-left: 3px solid var(--color-advertencia);
+}
+
+/* Pintado de fondo de fila por Estado (solo cuando pintarFilaPorEstado=true, hoy solo Gestión). */
+.leads-table__fila--pintada.leads-table__fila--convertido {
+  background: var(--color-exito-fondo);
+}
+
+.leads-table__fila--pintada.leads-table__fila--rechazado {
+  background: var(--color-error-fondo);
+}
+
+.leads-table__fila--pintada.leads-table__fila--proceso {
+  background: var(--color-advertencia-fondo);
+}
+
+/* Las columnas sticky (expandir/Acciones) tienen fondo propio para el efecto de scroll;
+   se les pasa el mismo tinte para que no corten visualmente el color de la fila. */
+.leads-table__fila--pintada.leads-table__fila--convertido .leads-table__col-izquierda,
+.leads-table__fila--pintada.leads-table__fila--convertido .leads-table__col-derecha {
+  background: var(--color-exito-fondo);
+}
+
+.leads-table__fila--pintada.leads-table__fila--rechazado .leads-table__col-izquierda,
+.leads-table__fila--pintada.leads-table__fila--rechazado .leads-table__col-derecha {
+  background: var(--color-error-fondo);
+}
+
+.leads-table__fila--pintada.leads-table__fila--proceso .leads-table__col-izquierda,
+.leads-table__fila--pintada.leads-table__fila--proceso .leads-table__col-derecha {
+  background: var(--color-advertencia-fondo);
 }
 
 .leads-table__avatar {
@@ -522,6 +628,26 @@ function seguimientosOrdenados(lead) {
 .leads-table__fila-expandida td {
   background: #fafbfc;
   white-space: normal;
+}
+
+.leads-table__requerimiento {
+  margin-bottom: var(--espacio-3);
+  padding-bottom: var(--espacio-3);
+  border-bottom: 1px solid var(--color-borde-tarjeta);
+}
+
+.leads-table__requerimiento-etiqueta {
+  display: block;
+  color: var(--color-texto-terciario);
+  font-weight: 600;
+  font-size: 0.8rem;
+  margin-bottom: 0.2rem;
+}
+
+.leads-table__requerimiento-texto {
+  margin: 0;
+  color: var(--color-texto);
+  font-size: 0.9rem;
 }
 
 .leads-table__historial-cabecera {
@@ -651,6 +777,13 @@ function seguimientosOrdenados(lead) {
     border-bottom: 1px solid var(--color-borde-tarjeta);
     text-align: left;
     white-space: normal;
+  }
+
+  /* En modo tarjeta hay espacio vertical de sobra: Empresa/Correo se ven completos. */
+  .leads-table__celda-truncada {
+    max-width: none;
+    overflow: visible;
+    text-overflow: clip;
   }
 
   .leads-table__tabla td:last-child {

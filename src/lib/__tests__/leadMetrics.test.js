@@ -311,13 +311,13 @@ describe('filterLeadsByMonthKeys', () => {
 describe('computeTareasProximoContacto', () => {
   const HOY = '2026-01-31'
 
-  it('incluye leads con fecha_sub_estado dentro de la ventana [-2, +2] y excluye los que quedan fuera', () => {
+  it('incluye leads con fecha_sub_estado dentro de la ventana [-4, +4] y excluye los que quedan fuera', () => {
     const leads = [
-      { id: 1, contact: 'Vencido lejos', fecha_sub_estado: '2026-01-27' }, // fuera (hoy-4)
-      { id: 2, contact: 'Vencido límite', fecha_sub_estado: '2026-01-29' }, // dentro (hoy-2)
+      { id: 1, contact: 'Vencido lejos', fecha_sub_estado: '2026-01-26' }, // fuera (hoy-5)
+      { id: 2, contact: 'Vencido límite', fecha_sub_estado: '2026-01-27' }, // dentro (hoy-4)
       { id: 3, contact: 'Hoy', fecha_sub_estado: '2026-01-31' },
-      { id: 4, contact: 'Futuro límite', fecha_sub_estado: '2026-02-02' }, // dentro (hoy+2)
-      { id: 5, contact: 'Futuro lejos', fecha_sub_estado: '2026-02-03' }, // fuera (hoy+3)
+      { id: 4, contact: 'Futuro límite', fecha_sub_estado: '2026-02-04' }, // dentro (hoy+4)
+      { id: 5, contact: 'Futuro lejos', fecha_sub_estado: '2026-02-05' }, // fuera (hoy+5)
       { id: 6, contact: 'Sin fecha', fecha_sub_estado: null },
     ]
 
@@ -377,13 +377,24 @@ describe('computeTareasProximoContacto', () => {
     expect(tareas[0].descripcion).toBe('')
   })
 
-  it('trae estado y sub_estado_proceso tal como están en el lead', () => {
-    const leads = [{ id: 1, fecha_sub_estado: '2026-01-31', sub_estado_proceso: 'follow_up' }]
+  it('trae estado, sub_estado_proceso y proximo_contacto tal como están en el lead', () => {
+    const leads = [
+      { id: 1, fecha_sub_estado: '2026-01-31', sub_estado_proceso: 'follow_up', proximo_contacto: 'mail' },
+    ]
 
     const tareas = computeTareasProximoContacto(leads, HOY)
 
     expect(tareas[0].estado).toBe('proceso')
     expect(tareas[0].subEstadoProceso).toBe('follow_up')
+    expect(tareas[0].proximoContacto).toBe('mail')
+  })
+
+  it('si el lead no tiene proximo_contacto definido, queda vacío', () => {
+    const leads = [{ id: 1, fecha_sub_estado: '2026-01-31' }]
+
+    const tareas = computeTareasProximoContacto(leads, HOY)
+
+    expect(tareas[0].proximoContacto).toBe('')
   })
 
   it('borde: array vacío retorna array vacío sin lanzar error', () => {

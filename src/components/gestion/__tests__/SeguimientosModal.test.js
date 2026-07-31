@@ -161,6 +161,46 @@ describe('SeguimientosModal', () => {
     })
   })
 
+  describe('campo "Próx. Contacto" (Llamar / Mail / Sin seguimiento)', () => {
+    it('por defecto, sin valor previo en el lead, arranca en "Sin seguimiento" (nunca vacío)', () => {
+      const wrapper = mount(SeguimientosModal, { props: { lead: crearLead() } })
+      expect(campoPorLabel(wrapper, 'Próx. Contacto').element.value).toBe('sin_seguimiento')
+    })
+
+    it('si el lead ya tiene un proximo_contacto vigente, lo precarga', () => {
+      const wrapper = mount(SeguimientosModal, { props: { lead: crearLead({ proximo_contacto: 'mail' }) } })
+      expect(campoPorLabel(wrapper, 'Próx. Contacto').element.value).toBe('mail')
+    })
+
+    it('el select no tiene opción vacía/placeholder: las 3 opciones son siempre valores reales', () => {
+      const wrapper = mount(SeguimientosModal, { props: { lead: crearLead() } })
+      const opciones = campoPorLabel(wrapper, 'Próx. Contacto').findAll('option').map((o) => o.element.value)
+      expect(opciones).toEqual(['llamar', 'mail', 'sin_seguimiento'])
+    })
+
+    it('solo se muestra cuando Estado = En Proceso', async () => {
+      const wrapper = mount(SeguimientosModal, { props: { lead: crearLead() } })
+      expect(campoPorLabel(wrapper, 'Próx. Contacto')).toBeTruthy()
+
+      await campoPorLabel(wrapper, 'Estado').setValue('convertido')
+      expect(campoPorLabel(wrapper, 'Próx. Contacto')).toBeUndefined()
+
+      await campoPorLabel(wrapper, 'Estado').setValue('rechazado')
+      expect(campoPorLabel(wrapper, 'Próx. Contacto')).toBeUndefined()
+    })
+
+    it('el valor elegido viaja en actualizacionEstado.proximo_contacto al agregar el seguimiento', async () => {
+      const wrapper = mount(SeguimientosModal, { props: { lead: crearLead() } })
+
+      await campoPorLabel(wrapper, 'Próx. Contacto').setValue('mail')
+      await wrapper.find('textarea').setValue('Le mando un mail')
+      await wrapper.find('form').trigger('submit.prevent')
+
+      const emitido = wrapper.emitted('agregar-seguimiento')
+      expect(emitido[0][0].actualizacionEstado.proximo_contacto).toBe('mail')
+    })
+  })
+
   describe('validaciones del formulario de alta', () => {
     it('falta sub-estado (Estado = En Proceso) bloquea el submit', async () => {
       const wrapper = mount(SeguimientosModal, { props: { lead: crearLead({ sub_estado_proceso: '' }) } })

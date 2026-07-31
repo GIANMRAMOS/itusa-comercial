@@ -489,6 +489,21 @@ describe('LeadsTable', () => {
       // Alfa (Bruno) < Beta (Ana) < Zeta (Carlos)
       expect(nombresContacto(wrapper)).toEqual(['Bruno', 'Ana', 'Carlos'])
     })
+
+    it('click en "Última fecha de contacto": ordena por la fecha real del último seguimiento (no por texto), leads sin seguimientos van al final', async () => {
+      const leads = [
+        crearLead({ id: 1, contact: 'Sin seguimientos', seguimientos: [] }),
+        crearLead({ id: 2, contact: 'Reciente', seguimientos: [{ id: 20, fecha: '2024-03-10', texto: 'x' }] }),
+        crearLead({ id: 3, contact: 'Antiguo', seguimientos: [{ id: 30, fecha: '2024-01-05', texto: 'x' }] }),
+      ]
+      const wrapper = mount(LeadsTable, { props: { leads, mostrarUltimaFechaContacto: true } })
+
+      await botonCabecera(wrapper, 'Última fecha de contacto').trigger('click')
+      expect(nombresContacto(wrapper)).toEqual(['Antiguo', 'Reciente', 'Sin seguimientos'])
+
+      await botonCabecera(wrapper, 'Última fecha de contacto').trigger('click') // invierte a desc
+      expect(nombresContacto(wrapper)).toEqual(['Reciente', 'Antiguo', 'Sin seguimientos'])
+    })
   })
 
   describe('prop permitirAgregarSeguimiento', () => {
@@ -542,6 +557,96 @@ describe('LeadsTable', () => {
       const wrapper = mount(LeadsTable, { props: { leads: [crearLead()] } })
 
       expect(wrapper.find('.leads-table__fila-expandida').exists()).toBe(false)
+    })
+  })
+
+  describe('prop mostrarUltimaFechaContacto (columna nueva, solo Gestión)', () => {
+    it('por defecto (false) no muestra la columna', () => {
+      const wrapper = mount(LeadsTable, { props: { leads: [crearLead()] } })
+
+      const encabezados = wrapper.findAll('th').map((th) => th.text())
+      expect(encabezados).not.toContain('Última fecha de contacto')
+      expect(wrapper.find('[data-label="Última fecha de contacto"]').exists()).toBe(false)
+    })
+
+    it('activada, muestra la fecha del seguimiento más reciente, antes de la columna Factura', async () => {
+      const lead = crearLead({
+        seguimientos: [
+          { id: 1, fecha: '2024-01-01', texto: 'Primero' },
+          { id: 2, fecha: '2024-03-15', texto: 'Más reciente' },
+        ],
+      })
+      const wrapper = mount(LeadsTable, { props: { leads: [lead], mostrarUltimaFechaContacto: true } })
+
+      const encabezados = wrapper.findAll('th').map((th) => th.text())
+      const indiceUltimaFecha = encabezados.indexOf('Última fecha de contacto')
+      const indiceFactura = encabezados.indexOf('Factura')
+      expect(indiceUltimaFecha).toBeGreaterThan(-1)
+      expect(indiceUltimaFecha).toBeLessThan(indiceFactura)
+
+      const celda = wrapper.find('[data-label="Última fecha de contacto"]')
+      expect(celda.text()).toBe('15/03/2024')
+    })
+
+    it('si el lead no tiene seguimientos, la celda queda vacía (sin guion)', () => {
+      const lead = crearLead({ seguimientos: [] })
+      const wrapper = mount(LeadsTable, { props: { leads: [lead], mostrarUltimaFechaContacto: true } })
+
+      expect(wrapper.find('[data-label="Última fecha de contacto"]').text()).toBe('')
+    })
+  })
+
+  describe('prop mostrarRequerimiento (bloque antes del historial, solo Gestión)', () => {
+    it('por defecto (false) no muestra el bloque de Requerimiento, aunque el lead tenga uno cargado', async () => {
+      const lead = crearLead({ requerimiento: 'Necesita una landing page' })
+      const wrapper = mount(LeadsTable, { props: { leads: [lead] } })
+
+      await wrapper.find('.leads-table__boton-expandir').trigger('click')
+
+      expect(wrapper.find('.leads-table__requerimiento').exists()).toBe(false)
+    })
+
+    it('activada, muestra el requerimiento del lead antes del historial de seguimientos', async () => {
+      const lead = crearLead({ requerimiento: 'Necesita una landing page' })
+      const wrapper = mount(LeadsTable, { props: { leads: [lead], mostrarRequerimiento: true } })
+
+      await wrapper.find('.leads-table__boton-expandir').trigger('click')
+
+      const historial = wrapper.find('.leads-table__historial')
+      const requerimiento = historial.find('.leads-table__requerimiento')
+      expect(requerimiento.exists()).toBe(true)
+      expect(requerimiento.text()).toContain('Necesita una landing page')
+
+      // Verifica el orden: el bloque de Requerimiento aparece antes que "Historial de seguimientos".
+      expect(historial.html().indexOf('leads-table__requerimiento')).toBeLessThan(
+        historial.html().indexOf('Historial de seguimientos')
+      )
+    })
+
+    it('activada pero sin requerimiento cargado, no muestra el bloque', async () => {
+      const lead = crearLead({ requerimiento: '' })
+      const wrapper = mount(LeadsTable, { props: { leads: [lead], mostrarRequerimiento: true } })
+
+      await wrapper.find('.leads-table__boton-expandir').trigger('click')
+
+      expect(wrapper.find('.leads-table__requerimiento').exists()).toBe(false)
+    })
+  })
+
+  describe('prop pintarFilaPorEstado (fondo de fila por Estado, solo Gestión)', () => {
+    it('por defecto (false) no agrega la clase de pintado', () => {
+      const wrapper = mount(LeadsTable, { props: { leads: [crearLead()] } })
+
+      expect(wrapper.find('.leads-table__fila').classes()).not.toContain('leads-table__fila--pintada')
+    })
+
+    it('activada, agrega la clase de pintado junto con la clase de estado existente', () => {
+      const lead = crearLead({ conversion_at: '2024-02-01T00:00:00.000Z' })
+      const wrapper = mount(LeadsTable, { props: { leads: [lead], pintarFilaPorEstado: true } })
+
+      const fila = wrapper.find('.leads-table__fila')
+      expect(fila.classes()).toContain('leads-table__fila--pintada')
+      expect(fila.classes()).toContain('leads-table__fila--convertido')
     })
   })
 })

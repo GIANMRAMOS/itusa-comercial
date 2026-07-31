@@ -16,7 +16,7 @@ function montar(props) {
   return mount(TareasProximoContacto, { props, global: { stubs: { RouterLink: RouterLinkStub } } })
 }
 
-// "Hoy" fijo en 31/01/2026 (mediodía, local) para que la ventana [-2, +2] sea determinista.
+// "Hoy" fijo en 31/01/2026 (mediodía, local) para que la ventana [-4, +4] sea determinista.
 const HOY = '2026-01-31'
 
 function crearLead(overrides = {}) {
@@ -40,13 +40,14 @@ describe('TareasProximoContacto', () => {
     vi.useRealTimers()
   })
 
-  it('muestra solo los leads dentro de la ventana [-2, +2] días y el contador refleja esa cantidad', () => {
+  it('muestra solo los leads dentro de la ventana [-4, +4] días y el contador refleja esa cantidad', () => {
     const leads = [
-      crearLead({ id: 1, contact: 'Fuera de rango (lejos)', fecha_sub_estado: '2026-01-20' }),
-      crearLead({ id: 2, contact: 'Vencido límite', fecha_sub_estado: '2026-01-29' }),
+      crearLead({ id: 1, contact: 'Fuera de rango (lejos)', fecha_sub_estado: '2026-01-26' }),
+      crearLead({ id: 2, contact: 'Vencido límite', fecha_sub_estado: '2026-01-27' }),
       crearLead({ id: 3, contact: 'Hoy', fecha_sub_estado: '2026-01-31' }),
-      crearLead({ id: 4, contact: 'Futuro límite', fecha_sub_estado: '2026-02-02' }),
-      crearLead({ id: 5, contact: 'Convertido (sin fecha)', fecha_sub_estado: null }),
+      crearLead({ id: 4, contact: 'Futuro límite', fecha_sub_estado: '2026-02-04' }),
+      crearLead({ id: 5, contact: 'Futuro fuera de rango', fecha_sub_estado: '2026-02-05' }),
+      crearLead({ id: 6, contact: 'Convertido (sin fecha)', fecha_sub_estado: null }),
     ]
     const wrapper = montar({ leads })
 
@@ -104,6 +105,27 @@ describe('TareasProximoContacto', () => {
 
     expect(wrapper.findAll('.tareas__item').length).toBe(0)
     expect(wrapper.find('.tareas__vacio').exists()).toBe(true)
+  })
+
+  it('muestra el chip de Próx. Contacto después del sub-estado, cuando el lead lo tiene definido', () => {
+    const leads = [crearLead({ sub_estado_proceso: 'llamar', proximo_contacto: 'mail' })]
+    const wrapper = montar({ leads })
+
+    const meta = wrapper.find('.tareas__meta')
+    expect(meta.find('.tareas__proximo-contacto').exists()).toBe(true)
+    expect(meta.find('.tareas__proximo-contacto').text()).toBe('Mail')
+
+    const spans = meta.findAll('span')
+    const indiceSubEstado = spans.findIndex((s) => s.classes().includes('tareas__sub-estado'))
+    const indiceProximoContacto = spans.findIndex((s) => s.classes().includes('tareas__proximo-contacto'))
+    expect(indiceProximoContacto).toBeGreaterThan(indiceSubEstado)
+  })
+
+  it('no muestra el chip de Próx. Contacto cuando el lead no lo tiene definido', () => {
+    const leads = [crearLead()]
+    const wrapper = montar({ leads })
+
+    expect(wrapper.find('.tareas__proximo-contacto').exists()).toBe(false)
   })
 
   it('el nombre del contacto enlaza a Gestión con el leadId de la tarea', () => {

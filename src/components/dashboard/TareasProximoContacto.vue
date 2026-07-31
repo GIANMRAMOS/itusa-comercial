@@ -1,7 +1,7 @@
 <script setup>
 import { computed } from 'vue'
 import { computeTareasProximoContacto } from '@/lib/leadMetrics'
-import { etiquetaSubEstado } from '@/lib/leadEstado'
+import { etiquetaSubEstado, etiquetaProximoContacto } from '@/lib/leadEstado'
 import { parseDateGMT5 } from '@/composables/useDateGMT5'
 
 const props = defineProps({
@@ -33,7 +33,7 @@ function formatearFecha(fecha) {
     <div class="tareas__cabecera-seccion">
       <div>
         <h2 class="tareas__titulo">📋 Atención a estos pendientes:</h2>
-        <p class="tareas__subtitulo">Leads a contactar (2 días antes y después de hoy)</p>
+        <p class="tareas__subtitulo">Leads a contactar (4 días antes y después de hoy)</p>
       </div>
       <span class="tareas__contador">{{ tareas.length }}</span>
     </div>
@@ -63,6 +63,9 @@ function formatearFecha(fecha) {
           </span>
           <span v-if="tarea.subEstadoProceso" class="tareas__sub-estado">
             {{ etiquetaSubEstado(tarea.subEstadoProceso) }}
+          </span>
+          <span v-if="tarea.proximoContacto" class="tareas__proximo-contacto">
+            {{ etiquetaProximoContacto(tarea.proximoContacto) }}
           </span>
         </div>
         <p class="tareas__descripcion">{{ tarea.descripcion || 'Sin seguimientos registrados.' }}</p>
@@ -204,7 +207,8 @@ function formatearFecha(fecha) {
   color: #fff;
 }
 
-.tareas__sub-estado {
+.tareas__sub-estado,
+.tareas__proximo-contacto {
   padding: 0.1rem 0.5rem;
   border-radius: 999px;
   font-size: 0.75rem;

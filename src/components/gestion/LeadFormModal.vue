@@ -150,6 +150,9 @@ function construirPayload() {
       contactadoAt: payload.contactado_at,
       calificadoAt: payload.calificado_at,
       visitaAt: payload.visita_at,
+      // "Próx. Contacto" se define solo al agregar un seguimiento (SeguimientosModal), no acá:
+      // se preserva el valor vigente del lead sin tocarlo desde este formulario.
+      proximoContacto: props.lead?.proximo_contacto,
     })
   )
 

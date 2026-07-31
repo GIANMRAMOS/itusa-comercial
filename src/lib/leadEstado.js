@@ -18,12 +18,28 @@ export const OPCIONES_MOTIVO_RECHAZO = [
   { value: 'no_desea', label: 'No desea' },
 ]
 
+// Medio del próximo contacto: siempre tiene un valor real (incluye "Sin seguimiento" como
+// opción explícita) para que el campo sea obligatorio sin depender de un placeholder vacío.
+export const OPCIONES_PROXIMO_CONTACTO = [
+  { value: 'llamar', label: 'Llamar' },
+  { value: 'mail', label: 'Mail' },
+  { value: 'sin_seguimiento', label: 'Sin seguimiento' },
+]
+
 /**
  * Etiqueta legible de un valor de sub_estado_proceso (ej. 'follow_up' -> 'Follow-up').
  * Devuelve el valor crudo si no se reconoce (dato legado o inesperado).
  */
 export function etiquetaSubEstado(valor) {
   return OPCIONES_SUB_ESTADO_PROCESO.find((opcion) => opcion.value === valor)?.label || valor
+}
+
+/**
+ * Etiqueta legible de un valor de proximo_contacto (ej. 'mail' -> 'Mail').
+ * Devuelve el valor crudo si no se reconoce.
+ */
+export function etiquetaProximoContacto(valor) {
+  return OPCIONES_PROXIMO_CONTACTO.find((opcion) => opcion.value === valor)?.label || valor
 }
 
 // Sub-estados de proceso que, además de marcar contacto, ya implican calificación y/o visita
@@ -48,6 +64,7 @@ export function construirActualizacionEstado({
   contactadoAt,
   calificadoAt,
   visitaAt,
+  proximoContacto,
 }) {
   const actualizacion = {
     sub_estado_proceso: estado === 'proceso' ? subEstadoProceso || null : null,
@@ -55,6 +72,7 @@ export function construirActualizacionEstado({
     conversion_at: estado === 'convertido' ? conversionAt || null : null,
     rechazo_at: estado === 'rechazado' ? rechazoAt || null : null,
     motivo_rechazo: estado === 'rechazado' ? motivoRechazo || null : null,
+    proximo_contacto: estado === 'proceso' ? proximoContacto || null : null,
   }
 
   if (estado === 'proceso') {

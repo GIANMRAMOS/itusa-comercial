@@ -2,8 +2,10 @@ import { describe, it, expect } from 'vitest'
 import {
   construirActualizacionEstado,
   etiquetaSubEstado,
+  etiquetaProximoContacto,
   OPCIONES_SUB_ESTADO_PROCESO,
   OPCIONES_MOTIVO_RECHAZO,
+  OPCIONES_PROXIMO_CONTACTO,
 } from '@/lib/leadEstado'
 
 describe('construirActualizacionEstado', () => {
@@ -115,6 +117,28 @@ describe('construirActualizacionEstado', () => {
       'no_desea',
     ])
   })
+
+  it('expone las opciones de próx. contacto, con "Sin seguimiento" como valor real (no placeholder)', () => {
+    expect(OPCIONES_PROXIMO_CONTACTO.map((o) => o.value)).toEqual(['llamar', 'mail', 'sin_seguimiento'])
+  })
+
+  it('estado proceso: incluye proximo_contacto tal como se le pasó', () => {
+    const resultado = construirActualizacionEstado({
+      estado: 'proceso',
+      subEstadoProceso: 'llamar',
+      fechaSubEstado: '2024-05-01',
+      contactadoAt: '2024-01-01',
+      proximoContacto: 'mail',
+    })
+    expect(resultado.proximo_contacto).toBe('mail')
+  })
+
+  it('estado convertido/rechazado: proximo_contacto siempre queda en null, sin importar lo que se pase', () => {
+    const convertido = construirActualizacionEstado({ estado: 'convertido', conversionAt: '2024-07-01', proximoContacto: 'mail' })
+    const rechazado = construirActualizacionEstado({ estado: 'rechazado', rechazoAt: '2024-07-01', motivoRechazo: 'no_desea', proximoContacto: 'llamar' })
+    expect(convertido.proximo_contacto).toBeNull()
+    expect(rechazado.proximo_contacto).toBeNull()
+  })
 })
 
 describe('etiquetaSubEstado', () => {
@@ -125,5 +149,17 @@ describe('etiquetaSubEstado', () => {
 
   it('devuelve el valor crudo si no reconoce el sub-estado', () => {
     expect(etiquetaSubEstado('valor_legado')).toBe('valor_legado')
+  })
+})
+
+describe('etiquetaProximoContacto', () => {
+  it('devuelve la etiqueta legible de un valor conocido', () => {
+    expect(etiquetaProximoContacto('llamar')).toBe('Llamar')
+    expect(etiquetaProximoContacto('mail')).toBe('Mail')
+    expect(etiquetaProximoContacto('sin_seguimiento')).toBe('Sin seguimiento')
+  })
+
+  it('devuelve el valor crudo si no reconoce el valor', () => {
+    expect(etiquetaProximoContacto('valor_legado')).toBe('valor_legado')
   })
 })

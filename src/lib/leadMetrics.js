@@ -217,20 +217,24 @@ export function flattenLatestSeguimientos(leads = [], limite = 10) {
   return todosLosSeguimientos.slice(0, limite)
 }
 
+// Días de ventana (antes/después de hoy) para "Atención a estos pendientes" en el Dashboard.
+const VENTANA_DIAS_PENDIENTES = 4
+
 /**
  * Tareas de próximo contacto: leads "En Proceso" cuya próxima fecha a contactar
- * (fecha_sub_estado) cae dentro de la ventana [hoy-2, hoy+2] días, ordenadas por fecha
- * ascendente (vencidas primero). Cada tarea trae su "urgencia" ('vencida' | 'hoy' | 'futura')
- * y la descripción del último seguimiento registrado para ese lead, si existe.
+ * (fecha_sub_estado) cae dentro de la ventana [hoy-4, hoy+4] días, ordenadas por fecha
+ * ascendente (vencidas primero). Cada tarea trae su "urgencia" ('vencida' | 'hoy' | 'futura'),
+ * el medio de próximo contacto (llamar/mail/sin_seguimiento, si está definido) y la
+ * descripción del último seguimiento registrado para ese lead, si existe.
  */
 export function computeTareasProximoContacto(leads = [], hoyStr = getTodayGMT5()) {
   const hoy = parseDateGMT5(hoyStr)
   if (!hoy) return []
 
   const inicioVentana = new Date(hoy)
-  inicioVentana.setDate(inicioVentana.getDate() - 2)
+  inicioVentana.setDate(inicioVentana.getDate() - VENTANA_DIAS_PENDIENTES)
   const finVentana = new Date(hoy)
-  finVentana.setDate(finVentana.getDate() + 2)
+  finVentana.setDate(finVentana.getDate() + VENTANA_DIAS_PENDIENTES)
 
   const tareas = leads
     .map((lead) => ({ lead, fecha: parseDateGMT5(lead.fecha_sub_estado) }))
@@ -257,6 +261,7 @@ export function computeTareasProximoContacto(leads = [], hoyStr = getTodayGMT5()
         company: lead.company || '',
         estado: getStatus(lead),
         subEstadoProceso: lead.sub_estado_proceso || '',
+        proximoContacto: lead.proximo_contacto || '',
         descripcion: ultimoSeguimiento?.texto || '',
         fechaSubEstado: lead.fecha_sub_estado,
         urgencia,
